@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
@@ -7,8 +8,40 @@ import '../models/level.dart';
 import '../level_generator/level_generator.dart';
 
 @pragma('vm:entry-point')
-LevelModel generateLevelIsolate(int levelNumber) {
-  return LevelGenerator.generateLevel(levelNumber);
+void _generateLevelIsolateEntry(Map<String, dynamic> message) {
+  final port = message['port'] as SendPort;
+  try {
+    final level = LevelGenerator.generateLevel(message['level'] as int);
+    port.send(level);
+  } catch (_) {
+    port.send(null);
+  }
+}
+
+/// Runs the generator in a short-lived isolate that is killed on timeout,
+/// so slow generations don't pile up in the background.
+Future<LevelModel?> _generateInIsolate(int levelNumber, Duration timeout) async {
+  final port = ReceivePort();
+  final errorPort = ReceivePort();
+  Isolate? isolate;
+  try {
+    isolate = await Isolate.spawn(
+      _generateLevelIsolateEntry,
+      {'port': port.sendPort, 'level': levelNumber},
+      errorsAreFatal: true,
+      onError: errorPort.sendPort,
+    );
+    final result = await (port.first as Future<LevelModel?>)
+        .timeout(timeout, onTimeout: () => null);
+    return result;
+  } catch (e) {
+    debugPrint('Isolate generation failed for level $levelNumber: $e');
+    return null;
+  } finally {
+    isolate?.kill(priority: Isolate.beforeNextEvent);
+    port.close();
+    errorPort.close();
+  }
 }
 
 class LevelRepository {
@@ -80,10 +113,11 @@ class LevelRepository {
       final cached = _tryLoadCached(levelNumber);
       if (cached != null) return;
 
-      final level = await compute(generateLevelIsolate, levelNumber)
-          .timeout(const Duration(seconds: 4));
-      _cache[levelNumber] = level;
-      _saveToDisk(levelNumber, level);
+      final level = await _generateInIsolate(levelNumber, const Duration(seconds: 4));
+      if (level != null) {
+        _cache[levelNumber] = level;
+        _saveToDisk(levelNumber, level);
+      }
     } catch (e) {
       debugPrint('Async pre-generation error for level $levelNumber: $e');
     } finally {
@@ -106,8 +140,11 @@ class LevelRepository {
     if (cached != null) return cached;
 
     try {
-      final level = await compute(generateLevelIsolate, levelNumber)
-          .timeout(const Duration(seconds: 3));
+      final level = await _generateInIsolate(levelNumber, const Duration(seconds: 3));
+      if (level == null) {
+        debugPrint('Isolate generation failed/timed out, generating synchronously');
+        return getLevel(levelNumber);
+      }
       _cache[levelNumber] = level;
       _saveToDisk(levelNumber, level);
       return level;

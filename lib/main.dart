@@ -19,7 +19,7 @@ void main() async {
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
+    statusBarIconBrightness: Brightness.light,
   ));
 
   await Hive.initFlutter();
@@ -43,11 +43,6 @@ class ArrowPuzzleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ));
-
     return MaterialApp(
       title: 'Arrow Escape',
       debugShowCheckedModeBanner: false,

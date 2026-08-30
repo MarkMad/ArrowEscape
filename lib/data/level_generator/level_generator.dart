@@ -10,10 +10,8 @@ class LevelGenerator {
   
   static LevelModel generateLevel(int levelNumber) {
     final type = AppConstants.levelTypeFor(levelNumber);
-    int gridSize = AppConstants.gridSizeForLevel(levelNumber);
-    if (levelNumber == 213) gridSize = 32;
-    if (levelNumber == 395) gridSize = 35;
-    if (levelNumber == 437) gridSize = 36;
+    final gridSize = AppConstants.handcraftedGridSizes[levelNumber] ??
+        AppConstants.gridSizeForLevel(levelNumber);
 
     final seed = levelNumber * 103 + 51;
     final rng = Random(seed);
@@ -77,15 +75,15 @@ class LevelGenerator {
     }
 
     bool fillEntireGrid = attempt < 12;
-    if (levelNumber == 213 || levelNumber == 395 || levelNumber == 437) {
-      fillEntireGrid = false; 
+    if (AppConstants.handcraftedLevels.contains(levelNumber)) {
+      fillEntireGrid = false;
     }
 
     int targetCount = fillEntireGrid ? mask.length : params.arrowCount;
     if (!fillEntireGrid) {
       double fillRate = 0.60;
-      if (levelNumber == 213 || levelNumber == 395 || levelNumber == 437) {
-        fillRate = 0.55; 
+      if (AppConstants.handcraftedLevels.contains(levelNumber)) {
+        fillRate = 0.55;
       } else {
         fillRate = (1.0 - (attempt - 12) * 0.02).clamp(0.68, 0.95);
       }

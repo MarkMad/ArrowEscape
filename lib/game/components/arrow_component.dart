@@ -372,14 +372,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
       return; 
     }
 
-    ArrowModel? updated;
-    final list = gameState.arrows;
-    for (int i = 0; i < list.length; i++) {
-      if (list[i].id == arrowModel.id) {
-        updated = list[i];
-        break;
-      }
-    }
+    ArrowModel? updated = gameState.arrowById(arrowModel.id);
 
     if (updated != null) {
       if (updated.state == ArrowState.sliding && !_isExiting && !_isAnimating) {
@@ -402,7 +395,8 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
   void render(Canvas canvas) {
     if (arrowModel.path.isEmpty) return;
 
-    if (_pressScale != 1.0) {
+    final bool pressed = _pressScale != 1.0;
+    if (pressed) {
       final head = arrowModel.path[0];
       final center = Offset((head[1] + 0.5) * cellSize, (head[0] + 0.5) * cellSize);
       canvas.save();
@@ -544,6 +538,10 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
 
     _drawHead(canvas, pts, mainColor, sw);
 
+    if (pressed) {
+      canvas.restore();
+    }
+
     if (_isPreviewMode) {
       final preview = _previewPath;
       if (preview != null && preview.length >= 2) {
@@ -551,8 +549,6 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
         _drawPreviewPath(canvas, preview, isBlocked);
       }
     }
-
-    canvas.restore();
   }
 
   void _drawHead(Canvas canvas, List<Offset> pts, Color mainColor, double sw) {
@@ -683,10 +679,6 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
-
-    if (_pressScale != 1.0) {
-      canvas.restore();
-    }
   }
 
   Color _color() {

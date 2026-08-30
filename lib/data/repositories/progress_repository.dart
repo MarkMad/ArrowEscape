@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
@@ -86,10 +87,10 @@ class ProgressRepository extends ChangeNotifier {
       'skinsUnlocked': _skinsUnlocked,
       'hapticsEnabled': _hapticsEnabled,
     });
+  }
 
-    for (final entry in _levelResults.entries) {
-      await _resultsBox.put(entry.key.toString(), jsonEncode(entry.value.toJson()));
-    }
+  Future<void> _saveResult(LevelResult result) async {
+    await _resultsBox.put(result.levelNumber.toString(), jsonEncode(result.toJson()));
   }
 
   Future<void> setTheme(GameTheme theme) async {
@@ -108,7 +109,7 @@ class ProgressRepository extends ChangeNotifier {
   bool unlockSkins(String code) {
     if (code.trim().toUpperCase() == 'THANKYOU') {
       _skinsUnlocked = true;
-      _save();
+      unawaited(_save());
       notifyListeners();
       return true;
     }
@@ -118,8 +119,11 @@ class ProgressRepository extends ChangeNotifier {
 
   Future<void> recordLevelComplete(LevelResult result) async {
     final existing = _levelResults[result.levelNumber];
+    LevelResult stored = result;
     if (existing == null || result.stars > existing.stars) {
       _levelResults[result.levelNumber] = result;
+    } else {
+      stored = existing;
     }
     if (result.levelNumber >= _currentLevel) {
       _currentLevel = result.levelNumber + 1;
@@ -128,6 +132,7 @@ class ProgressRepository extends ChangeNotifier {
       _highestUnlockedLevel = result.levelNumber + 1;
     }
     await _save();
+    await _saveResult(stored);
     notifyListeners();
   }
 

@@ -20,6 +20,10 @@ class GameState extends ChangeNotifier {
   late Map<String, OrphanDotType> _orphanDots;
 
   final Map<String, List<OrphanDot>> _consumedDotsByArrow = {};
+  final Map<String, ArrowModel> _arrowsById = {};
+
+  int get _effectiveMaxLives =>
+      gameMode == GameMode.zen ? 999 : AppConstants.maxLives;
 
   final void Function() onLevelComplete;
   final void Function() onGameOver;
@@ -48,8 +52,15 @@ class GameState extends ChangeNotifier {
   }) {
     _currentLevel = level;
     _arrows = level.arrows.map((a) => a.copyWith()).toList();
+    _rebuildIndex();
     _orphanDots = {for (final od in level.orphanDots) od.key: od.type};
-    _lives = gameMode == GameMode.zen ? 999 : AppConstants.maxLives;
+    _lives = _effectiveMaxLives;
+  }
+
+  void _rebuildIndex() {
+    _arrowsById
+      ..clear()
+      ..addEntries(_arrows.map((a) => MapEntry(a.id, a)));
   }
 
   List<ArrowModel> get arrows => _arrows;
@@ -62,8 +73,11 @@ class GameState extends ChangeNotifier {
   
   Map<String, OrphanDotType> get orphanDots => _orphanDots;
 
+  ArrowModel? arrowById(String id) => _arrowsById[id];
+
   void handleArrowExitCompleted(String arrowId) {
     _arrows.removeWhere((a) => a.id == arrowId);
+    _arrowsById.remove(arrowId);
     _consumedDotsByArrow.remove(arrowId);
 
     if (_arrows.isEmpty) {
@@ -150,6 +164,7 @@ class GameState extends ChangeNotifier {
     _lastExitTime = now;
 
     _arrows[index] = arrow.copyWith(state: ArrowState.sliding);
+    _arrowsById[arrowId] = _arrows[index];
     _recordConsumedDots(arrowId, exitInfo.consumed);
     
     for (final k in exitInfo.consumed) {
@@ -162,16 +177,18 @@ class GameState extends ChangeNotifier {
 
   TapResult _handleBlocked(int index, ArrowModel arrow, String arrowId) {
     _arrows[index] = arrow.copyWith(state: ArrowState.blocked);
+    _arrowsById[arrowId] = _arrows[index];
     if (gameMode != GameMode.zen) {
       _lives--;
       _livesLost++;
       onLifeLost();
     }
- 
+
     Future.delayed(AppConstants.arrowShakeDuration, () {
       final idx = _arrows.indexWhere((a) => a.id == arrowId);
       if (idx != -1) {
         _arrows[idx] = _arrows[idx].copyWith(state: ArrowState.idle);
+        _arrowsById[arrowId] = _arrows[idx];
         notifyListeners();
       }
     });
@@ -197,6 +214,14 @@ class GameState extends ChangeNotifier {
     final consumed = <String>[];
     final visited = <String>{};
 
+    final occupiedCells = <String>{};
+    for (final other in _arrows) {
+      if (other.id == arrow.id || other.state == ArrowState.sliding) continue;
+      for (final pt in other.path) {
+        occupiedCells.add('${pt[0]},${pt[1]}');
+      }
+    }
+
     while (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
       final key = '$nr,$nc';
       if (visited.contains(key)) return const _ExitInfo(true);
@@ -214,17 +239,8 @@ class GameState extends ChangeNotifier {
         } else if (dotType == OrphanDotType.right) {
           currentDir = ArrowDirection.right;
         }
-      } else {
-        bool hit = false;
-        for (final other in _arrows) {
-          if (other.id == arrow.id) continue;
-          if (other.state == ArrowState.sliding) continue;
-          for (final pt in other.path) {
-            if (pt[0] == nr && pt[1] == nc) { hit = true; break; }
-          }
-          if (hit) break;
-        }
-        if (hit) return const _ExitInfo(true);
+      } else if (occupiedCells.contains(key)) {
+        return const _ExitInfo(true);
       }
 
       d = currentDir.delta;
@@ -236,9 +252,10 @@ class GameState extends ChangeNotifier {
 
   void resetLevel() {
     _arrows = _currentLevel.arrows.map((a) => a.copyWith(state: ArrowState.idle)).toList();
+    _rebuildIndex();
     _orphanDots = {for (final od in _currentLevel.orphanDots) od.key: od.type};
     _consumedDotsByArrow.clear();
-    _lives = gameMode == GameMode.zen ? 999 : AppConstants.maxLives;
+    _lives = _effectiveMaxLives;
     _livesLost = 0;
     _isComplete = false;
     _isGameOver = false;
@@ -247,7 +264,7 @@ class GameState extends ChangeNotifier {
   }
 
   void restoreLife() {
-    if (_lives < AppConstants.maxLives) {
+    if (_lives < _effectiveMaxLives) {
       _lives++;
       if (_isGameOver && _lives > 0) {
         _isGameOver = false;

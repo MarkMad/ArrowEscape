@@ -78,6 +78,15 @@ class AppConstants {
   static const int randomMasterMax = 500;
   static const int randomExpertMin = 501;
   static const int randomExpertMax = 700;
+
+  /// Levels with bespoke generator tuning (special grid size, relaxed fill).
+  static const Set<int> handcraftedLevels = {213, 395, 437};
+
+  /// Grid size overrides for handcrafted levels.
+  static const Map<int, int> handcraftedGridSizes = {213: 32, 395: 35, 437: 36};
+
+  /// Handcrafted levels that only spawn neutral (non-deflecting) dots.
+  static const Set<int> neutralDotOnlyLevels = {395, 437};
 }
 
 enum LevelType {

@@ -27,14 +27,23 @@ class LevelSolver {
     }
 
     final activeArrows = List<bool>.filled(arrows.length, true);
-    
+
+    // Commutative multiset fingerprint: XOR alone can collide between
+    // different subsets, so pair it with a running sum for both arrows
+    // and dots. A collision now requires matching xor AND sum.
     int arrowHash = 0;
+    int arrowSum = 0;
     for (int i = 0; i < arrows.length; i++) {
-      arrowHash ^= arrows[i].id.hashCode;
+      final h = arrows[i].id.hashCode;
+      arrowHash ^= h;
+      arrowSum += h;
     }
     int dotHash = orphanDots.length * 997;
+    int dotSum = orphanDots.length * 31;
     for (final od in orphanDots) {
-      dotHash ^= od.key.hashCode;
+      final h = od.key.hashCode;
+      dotHash ^= h;
+      dotSum += h;
     }
 
     final visited = <String>{};
@@ -48,7 +57,7 @@ class LevelSolver {
       if (remainingCount == 0) return true;
       if (statesVisited > maxStatesLimit) return false;
 
-      final hash = '$arrowHash|$dotHash';
+      final hash = '$arrowHash|$arrowSum|$dotHash|$dotSum';
       if (visited.contains(hash)) return false;
       visited.add(hash);
       statesVisited++;
@@ -66,7 +75,9 @@ class LevelSolver {
 
         activeArrows[i] = false;
         final id = arrows[i].id;
-        arrowHash ^= id.hashCode;
+        final idHash = id.hashCode;
+        arrowHash ^= idHash;
+        arrowSum -= idHash;
 
         for (final pt in arrows[i].path) {
           board[pt[0] * gridSize + pt[1]] = 0;
@@ -78,7 +89,9 @@ class LevelSolver {
             activeOrphans[idx] = false;
             deactivated.add(idx);
             final odKey = '${idx ~/ gridSize},${idx % gridSize}';
-            dotHash ^= odKey.hashCode;
+            final kh = odKey.hashCode;
+            dotHash ^= kh;
+            dotSum -= kh;
           }
         }
 
@@ -90,12 +103,15 @@ class LevelSolver {
         for (final idx in deactivated) {
           activeOrphans[idx] = true;
           final odKey = '${idx ~/ gridSize},${idx % gridSize}';
-          dotHash ^= odKey.hashCode;
+          final kh = odKey.hashCode;
+          dotHash ^= kh;
+          dotSum += kh;
         }
         for (final pt in arrows[i].path) {
           board[pt[0] * gridSize + pt[1]] = i + 1;
         }
-        arrowHash ^= id.hashCode;
+        arrowHash ^= idHash;
+        arrowSum += idHash;
         activeArrows[i] = true;
       }
       return false;

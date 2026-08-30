@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -109,11 +109,15 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   double _shakeOffset = 0.0;
   Timer? _shakeTimer;
-  
+
   String? _comboText;
   Timer? _comboTimer;
+  Timer? _bonusTimer;
 
   final List<_Particle> _particles = [];
+
+  int get _startingLives =>
+      widget.gameMode == GameMode.zen ? 999 : AppConstants.maxLives;
 
   void _triggerShake() {
     _shakeTimer?.cancel();
@@ -168,7 +172,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _bonusText = '+15s';
       _showBonusAnimation = true;
     });
-    Timer(const Duration(milliseconds: 900), () {
+    _bonusTimer?.cancel();
+    _bonusTimer = Timer(const Duration(milliseconds: 900), () {
       if (mounted) {
         setState(() {
           _showBonusAnimation = false;
@@ -188,7 +193,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   }
 
   void _initGame() {
-    _lives = widget.gameMode == GameMode.zen ? 999 : AppConstants.maxLives;
+    _lives = _startingLives;
     _showingGameOver = false;
     _gameState?.removeListener(_onGameStateChanged);
     _gameState = GameState(
@@ -199,8 +204,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
       onLifeLost: widget.gameMode == GameMode.zen ? () {} : _onLifeLost,
       gameMode: widget.gameMode,
       onCombo: _triggerCombo,
-      onCameraShake: _triggerShake,
       onParticleBurst: _addParticleBurst,
+      onCameraShake: _triggerShake,
     );
     _gameState!.addListener(_onGameStateChanged);
 
@@ -286,7 +291,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
         _showingGameOver = false;
         _showingComplete = false;
         _game.resetLevel();
-        _lives = AppConstants.maxLives;
+        _lives = _startingLives;
         _resetTimerForLevel();
       });
     }
@@ -394,6 +399,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _levelTimer?.cancel();
+    _shakeTimer?.cancel();
+    _comboTimer?.cancel();
+    _bonusTimer?.cancel();
     _gameState?.removeListener(_onGameStateChanged);
     super.dispose();
   }
@@ -1148,6 +1156,14 @@ class _GameOverDialog extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 20),
+            if (!isTimeAttack) ...[
+              _DialogButton(
+                label: isTimeout ? 'Continue (+$continueTime s)' : 'Continue',
+                icon: Icons.play_arrow_rounded,
+                onTap: onContinue,
+              ),
+              const SizedBox(height: 10),
+            ],
             _DialogButton(
               label: isTimeAttack ? 'Start New Run' : 'Restart Level',
               icon: Icons.refresh_rounded,
