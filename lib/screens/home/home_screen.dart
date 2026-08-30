@@ -7,7 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_themes.dart';
 import '../../core/constants.dart';
-import '../../core/audio_haptic_helper.dart';
+import '../../core/haptic_helper.dart';
 import '../../core/game_mode.dart';
 import '../../main.dart';
 import '../game/game_screen.dart';
@@ -491,7 +491,7 @@ class _MenuButton extends ConsumerWidget {
     return GestureDetector(
       onTap: () {
         if (onTap != null) {
-          AudioHapticHelper.playClick();
+          HapticHelper.playClick();
           onTap!();
         }
       },
@@ -544,7 +544,7 @@ class _DifficultyButton extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () {
-        AudioHapticHelper.playClick();
+        HapticHelper.playClick();
         onTap();
       },
       child: Container(

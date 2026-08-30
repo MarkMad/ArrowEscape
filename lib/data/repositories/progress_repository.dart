@@ -5,7 +5,7 @@ import 'package:hive/hive.dart';
 import '../models/level_result.dart';
 import '../../core/constants.dart';
 import '../../core/app_themes.dart';
-import '../../core/audio_haptic_helper.dart';
+import '../../core/haptic_helper.dart';
 
 class ProgressRepository extends ChangeNotifier {
   late Box _box;
@@ -24,8 +24,6 @@ class ProgressRepository extends ChangeNotifier {
   int get maxLives => AppConstants.maxLives;
   int get currentLevel => _currentLevel;
   int get highestUnlockedLevel => _highestUnlockedLevel;
-  bool get hasLives => _lives > 0;
-  bool get livesAreFull => _lives >= AppConstants.maxLives;
   GameTheme get selectedTheme => _selectedTheme;
   bool get skinsUnlocked => _skinsUnlocked;
   bool get hapticsEnabled => _hapticsEnabled;
@@ -60,7 +58,7 @@ class ProgressRepository extends ChangeNotifier {
     _selectedTheme = GameTheme.values.firstWhere((t) => t.name == themeStr, orElse: () => GameTheme.classic);
     _skinsUnlocked = _box.get('skinsUnlocked', defaultValue: false);
     _hapticsEnabled = _box.get('hapticsEnabled', defaultValue: true);
-    AudioHapticHelper.hapticsEnabled = _hapticsEnabled;
+    HapticHelper.hapticsEnabled = _hapticsEnabled;
 
     for (final key in _resultsBox.keys) {
       final level = int.tryParse(key.toString());
@@ -100,7 +98,7 @@ class ProgressRepository extends ChangeNotifier {
 
   Future<void> toggleHaptics() async {
     _hapticsEnabled = !_hapticsEnabled;
-    AudioHapticHelper.hapticsEnabled = _hapticsEnabled;
+    HapticHelper.hapticsEnabled = _hapticsEnabled;
     await _save();
     notifyListeners();
   }

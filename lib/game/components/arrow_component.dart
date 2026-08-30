@@ -2,7 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/audio_haptic_helper.dart';
+import '../../core/haptic_helper.dart';
 import '../../core/app_themes.dart';
 import '../../data/models/arrow.dart';
 import '../../data/models/level.dart';
@@ -110,7 +110,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     _isTouchDown = true;
     _longPressAccum = 0.0;
     _pressScale = 0.93;
-    AudioHapticHelper.playClick();
+    HapticHelper.playClick();
   }
 
   @override
@@ -142,11 +142,11 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     final result = gameState.tapArrow(arrowModel.id);
     switch (result) {
       case TapResult.exited:
-        AudioHapticHelper.playSuccess(combo: gameState.comboCount);
+        HapticHelper.playSuccess(combo: gameState.comboCount);
         _startExitAnimation();
         break;
       case TapResult.blocked:
-        AudioHapticHelper.playFailure();
+        HapticHelper.playFailure();
         _playBlockAnimation();
         break;
       case TapResult.ignored:
@@ -314,7 +314,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
       if (!_isPreviewMode && _longPressAccum >= _kLongPressThreshold) {
         _isPreviewMode = true;
         _previewPath = _buildPreviewPath();
-        AudioHapticHelper.playClick();
+        HapticHelper.playClick();
       }
       if (_isPreviewMode) {
         _previewPulseTime += dt * 4.0;

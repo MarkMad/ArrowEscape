@@ -9,7 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_themes.dart';
 import '../../core/constants.dart';
-import '../../core/audio_haptic_helper.dart';
+import '../../core/haptic_helper.dart';
 import '../../core/game_mode.dart';
 import '../../data/models/arrow.dart';
 import '../../data/models/level.dart';
@@ -214,7 +214,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void _onLevelComplete() {
     if (!mounted || _showingComplete) return;
     _levelTimer?.cancel();
-    AudioHapticHelper.playSuccess(isLast: true);
+    HapticHelper.playSuccess(isLast: true);
     setState(() => _showingComplete = true);
 
     final progress = ref.read(progressRepositoryProvider);
@@ -1187,7 +1187,7 @@ class _DialogButton extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () {
-        AudioHapticHelper.playClick();
+        HapticHelper.playClick();
         onTap();
       },
       child: Container(

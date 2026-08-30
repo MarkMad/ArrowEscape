@@ -1,9 +1,7 @@
 import 'package:flutter/services.dart';
 
-class AudioHapticHelper {
+class HapticHelper {
   static bool hapticsEnabled = true;
-
-  static void init() {}
 
   static Future<void> playClick() async {
     if (hapticsEnabled) {

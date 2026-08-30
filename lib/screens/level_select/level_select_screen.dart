@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_colors.dart';
-import '../../core/audio_haptic_helper.dart';
+import '../../core/haptic_helper.dart';
 import '../../main.dart';
 import '../game/game_screen.dart';
 
@@ -155,7 +155,7 @@ class _LevelCell extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (onTap != null) {
-          AudioHapticHelper.playClick();
+          HapticHelper.playClick();
           onTap!();
         }
       },
