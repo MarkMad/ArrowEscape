@@ -311,12 +311,15 @@ class _UnlockDialogState extends State<_UnlockDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       final code = _controller.text;
-                      final success = widget.ref.read(progressRepositoryProvider).unlockSkins(code);
+                      final messenger = ScaffoldMessenger.of(context);
+                      final navigator = Navigator.of(context);
+                      final success = await widget.ref.read(progressRepositoryProvider).unlockSkins(code);
+                      if (!mounted) return;
                       if (success) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        navigator.pop();
+                        messenger.showSnackBar(
                           const SnackBar(content: Text('All themes and skins unlocked!')),
                         );
                       } else {

@@ -5,6 +5,9 @@ class AppConstants {
 
   static const int maxLives = 3;
 
+  /// The level at which the story campaign is considered "finished".
+  static const int finalLevelNumber = 500;
+
   static const int bossLevelEvery = 5;   
   static const int godLevelEvery  = 10;  
 

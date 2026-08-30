@@ -325,26 +325,8 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
 
     if (_isExiting) {
       _exitProgress += dt / _exitDuration;
-      final themeColors = AppThemes.getThemeColors(gameState.theme);
-
-      if (_exitProgress > 0.05 && _exitProgress < 0.95) {
-        if (_cachedTrack != null && _cachedDist != null && _cachedTailDist != null) {
-          final traveled = (_exitProgress * _cachedTailDist!).clamp(0.0, _cachedTailDist!);
-          final animTail = (_cachedTailDist! - traveled).clamp(0.0, _cachedTailDist!);
-          final tailSlice = _slice(_cachedTrack!, _cachedDist!, animTail, animTail);
-          if (tailSlice.isNotEmpty) {
-            gameState.onParticleBurst?.call(tailSlice.first, themeColors.accentColor);
-          }
-        }
-      }
 
       if (_exitProgress >= 1.0) {
-        final head = arrowModel.path[0];
-        final centerOffset = Offset((head[1] + 0.5) * cellSize, (head[0] + 0.5) * cellSize);
-        final color = themeColors.accentColor;
-        for (int b = 0; b < 2; b++) {
-          gameState.onParticleBurst?.call(centerOffset, color);
-        }
         removeFromParent();
         gameState.handleArrowExitCompleted(arrowModel.id);
         return;

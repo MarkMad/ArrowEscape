@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
@@ -106,11 +105,11 @@ class ProgressRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool unlockSkins(String code) {
+  Future<bool> unlockSkins(String code) async {
     if (code.trim().toUpperCase() == 'THANKYOU') {
       _skinsUnlocked = true;
-      unawaited(_save());
       notifyListeners();
+      await _save();
       return true;
     }
     return false;

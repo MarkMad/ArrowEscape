@@ -30,7 +30,6 @@ class GameState extends ChangeNotifier {
   final void Function() onLifeLost;
   final void Function()? onDeadlock;
   final void Function()? onCombo;
-  final void Function(Offset globalPos, Color color)? onParticleBurst;
   final void Function()? onCameraShake;
   
   DateTime? _lastExitTime;
@@ -47,7 +46,6 @@ class GameState extends ChangeNotifier {
     this.onDeadlock,
     this.gameMode = GameMode.classic,
     this.onCombo,
-    this.onParticleBurst,
     this.onCameraShake,
   }) {
     _currentLevel = level;

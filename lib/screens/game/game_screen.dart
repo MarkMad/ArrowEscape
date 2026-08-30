@@ -114,8 +114,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
   Timer? _comboTimer;
   Timer? _bonusTimer;
 
-  final List<_Particle> _particles = [];
-
   int get _startingLives =>
       widget.gameMode == GameMode.zen ? 999 : AppConstants.maxLives;
 
@@ -146,24 +144,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
     });
     _comboTimer = Timer(const Duration(milliseconds: 900), () {
       if (mounted) setState(() => _comboText = null);
-    });
-  }
-
-  void _addParticleBurst(Offset offset, Color color) {
-    if (!mounted) return;
-    final random = Random();
-    final newParticles = List.generate(18, (i) {
-      final angle = random.nextDouble() * 2 * pi;
-      final speed = 70.0 + random.nextDouble() * 150.0;
-      return _Particle(
-        position: offset,
-        velocity: Offset(cos(angle) * speed, sin(angle) * speed),
-        color: color,
-        maxLife: 0.35 + random.nextDouble() * 0.25,
-      );
-    });
-    setState(() {
-      _particles.addAll(newParticles);
     });
   }
 
@@ -204,7 +184,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
       onLifeLost: widget.gameMode == GameMode.zen ? () {} : _onLifeLost,
       gameMode: widget.gameMode,
       onCombo: _triggerCombo,
-      onParticleBurst: _addParticleBurst,
       onCameraShake: _triggerShake,
     );
     _gameState!.addListener(_onGameStateChanged);
@@ -1006,7 +985,7 @@ class _LevelCompleteDialog extends StatelessWidget {
                               curve: Curves.elasticOut)),
             ),
             const SizedBox(height: 24),
-            if (level.levelNumber == 500) ...[
+            if (level.levelNumber == AppConstants.finalLevelNumber) ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -1327,17 +1306,3 @@ class _LevelLoadingScreenState extends State<_LevelLoadingScreen> {
   }
 }
 
-class _Particle {
-  Offset position;
-  Offset velocity;
-  Color color;
-  double maxLife;
-  double life = 0.0;
-
-  _Particle({
-    required this.position,
-    required this.velocity,
-    required this.color,
-    required this.maxLife,
-  });
-}
