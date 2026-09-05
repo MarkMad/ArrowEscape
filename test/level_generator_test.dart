@@ -1,18 +1,77 @@
 import 'package:arrowescape/core/constants.dart';
+import 'package:arrowescape/core/app_themes.dart';
 import 'package:arrowescape/data/level_generator/level_generator.dart';
 import 'package:arrowescape/data/level_generator/solver.dart';
 import 'package:arrowescape/data/models/arrow.dart';
 import 'package:arrowescape/data/models/level.dart';
+import 'package:arrowescape/game/game_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('LevelGenerator', () {
+    test('high-level solutions replay successfully in the game', () {
+      for (final number in [
+        213,
+        395,
+        437,
+        512,
+        550,
+        582,
+        600,
+        1100,
+        1101,
+        1110,
+        1200,
+        1500,
+        2000,
+      ]) {
+        final level = LevelGenerator.generateLevel(number);
+        final solution = LevelSolver.solve(level);
+        expect(solution, isNotNull, reason: 'level $number');
+        final state = GameState(
+          level: level,
+          theme: GameTheme.classic,
+          onLevelComplete: () {},
+          onGameOver: () {},
+          onLifeLost: () {},
+        );
+        try {
+          for (final id in solution!) {
+            expect(
+              state.isArrowBlocked(id),
+              isFalse,
+              reason: 'level $number solution cannot exit $id',
+            );
+            expect(state.tapArrow(id), TapResult.exited);
+            state.handleArrowExitCompleted(id);
+          }
+          expect(state.isComplete, isTrue, reason: 'level $number');
+        } finally {
+          state.dispose();
+        }
+      }
+    });
+
+    test('high levels retain redirectors after solvability validation', () {
+      for (final number in [512, 550, 582, 1100, 1200]) {
+        final level = LevelGenerator.generateLevel(number);
+        expect(
+          level.orphanDots.where((dot) => dot.type != OrphanDotType.neutral),
+          isNotEmpty,
+          reason: 'level $number should retain redirectors',
+        );
+      }
+    });
+
     test('is deterministic for a given level number', () {
       for (final levelNumber in [1, 5, 44, 213, 600]) {
         final a = LevelGenerator.generateLevel(levelNumber);
         final b = LevelGenerator.generateLevel(levelNumber);
-        expect(a.toJson(), b.toJson(),
-            reason: 'level $levelNumber should generate identical output');
+        expect(
+          a.toJson(),
+          b.toJson(),
+          reason: 'level $levelNumber should generate identical output',
+        );
       }
     });
 
@@ -20,10 +79,16 @@ void main() {
       for (var levelNumber = 1; levelNumber <= 160; levelNumber += 7) {
         final level = LevelGenerator.generateLevel(levelNumber);
         final solution = LevelSolver.solve(level, LevelSolver.maxStates);
-        expect(solution, isNotNull,
-            reason: 'level $levelNumber should be solvable');
-        expect(solution!.length, level.arrows.length,
-            reason: 'level $levelNumber solution should consume every arrow');
+        expect(
+          solution,
+          isNotNull,
+          reason: 'level $levelNumber should be solvable',
+        );
+        expect(
+          solution!.length,
+          level.arrows.length,
+          reason: 'level $levelNumber solution should consume every arrow',
+        );
       }
     });
 
@@ -32,17 +97,29 @@ void main() {
         final level = LevelGenerator.generateLevel(levelNumber);
         for (final arrow in level.arrows) {
           for (final pt in arrow.path) {
-            expect(pt[0], inInclusiveRange(0, level.gridSize - 1),
-                reason: 'level $levelNumber row $pt');
-            expect(pt[1], inInclusiveRange(0, level.gridSize - 1),
-                reason: 'level $levelNumber col $pt');
+            expect(
+              pt[0],
+              inInclusiveRange(0, level.gridSize - 1),
+              reason: 'level $levelNumber row $pt',
+            );
+            expect(
+              pt[1],
+              inInclusiveRange(0, level.gridSize - 1),
+              reason: 'level $levelNumber col $pt',
+            );
           }
         }
         for (final dot in level.orphanDots) {
-          expect(dot.row, inInclusiveRange(0, level.gridSize - 1),
-              reason: 'level $levelNumber dot row');
-          expect(dot.col, inInclusiveRange(0, level.gridSize - 1),
-              reason: 'level $levelNumber dot col');
+          expect(
+            dot.row,
+            inInclusiveRange(0, level.gridSize - 1),
+            reason: 'level $levelNumber dot row',
+          );
+          expect(
+            dot.col,
+            inInclusiveRange(0, level.gridSize - 1),
+            reason: 'level $levelNumber dot col',
+          );
         }
       }
     });
@@ -54,14 +131,21 @@ void main() {
         for (final arrow in level.arrows) {
           for (final pt in arrow.path) {
             final key = '${pt[0]},${pt[1]}';
-            expect(occupied.add(key), isTrue,
-                reason: 'level $levelNumber cell $key occupied twice');
+            expect(
+              occupied.add(key),
+              isTrue,
+              reason: 'level $levelNumber cell $key occupied twice',
+            );
           }
         }
         for (final dot in level.orphanDots) {
-          expect(occupied.contains(dot.key), isFalse,
-              reason: 'level $levelNumber orphan dot overlaps an arrow at '
-                  '${dot.key}');
+          expect(
+            occupied.contains(dot.key),
+            isFalse,
+            reason:
+                'level $levelNumber orphan dot overlaps an arrow at '
+                '${dot.key}',
+          );
         }
       }
     });
@@ -69,10 +153,14 @@ void main() {
     test('matches the documented grid size for each level', () {
       for (var levelNumber = 1; levelNumber <= 150; levelNumber += 11) {
         final level = LevelGenerator.generateLevel(levelNumber);
-        final expected = AppConstants.handcraftedGridSizes[levelNumber] ??
+        final expected =
+            AppConstants.handcraftedGridSizes[levelNumber] ??
             AppConstants.gridSizeForLevel(levelNumber);
-        expect(level.gridSize, expected,
-            reason: 'level $levelNumber grid size mismatch');
+        expect(
+          level.gridSize,
+          expected,
+          reason: 'level $levelNumber grid size mismatch',
+        );
       }
     });
   });
@@ -121,9 +209,7 @@ void main() {
             ],
           ),
         ],
-        orphanDots: [
-          OrphanDot(row: 1, col: 1, type: OrphanDotType.down),
-        ],
+        orphanDots: [OrphanDot(row: 1, col: 1, type: OrphanDotType.down)],
         maskShape: MaskShape.square,
       );
 

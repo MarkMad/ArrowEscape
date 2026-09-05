@@ -9,11 +9,7 @@ class OrphanDot {
 
   String get key => '$row,$col';
 
-  Map<String, dynamic> toJson() => {
-    'row': row,
-    'col': col,
-    'type': type.index,
-  };
+  Map<String, dynamic> toJson() => {'row': row, 'col': col, 'type': type.index};
 
   factory OrphanDot.fromJson(Map<String, dynamic> json) => OrphanDot(
     row: json['row'] as int,
@@ -23,16 +19,15 @@ class OrphanDot {
 }
 
 enum MaskShape {
-  
   square,
   circle,
-  
+
   heart,
   star,
   diamond,
   hexagon,
   blob,
-  
+
   cat,
   dog,
   frog,
@@ -42,7 +37,7 @@ enum MaskShape {
   fish,
   bird,
   butterfly,
-  
+
   guitar,
   tree,
   house,
@@ -50,7 +45,8 @@ enum MaskShape {
 }
 
 class LevelModel {
-  static const int currentVersion = 2;
+  // Reverse generation and revised masks replace the previous cached boards.
+  static const int currentVersion = 3;
 
   final int levelNumber;
   final int gridSize;
@@ -105,16 +101,18 @@ class LevelModel {
         .map((a) => ArrowModel.fromJson(a as Map<String, dynamic>))
         .toList(),
     maskShape: json['maskShape'] != null
-        ? MaskShape.values[(json['maskShape'] as int)
-            .clamp(0, MaskShape.values.length - 1)]
+        ? MaskShape.values[(json['maskShape'] as int).clamp(
+            0,
+            MaskShape.values.length - 1,
+          )]
         : MaskShape.square,
     mask: json['mask'] != null
         ? Set<String>.from((json['mask'] as List).cast<String>())
         : const {},
     orphanDots: json['orphanDots'] != null
         ? (json['orphanDots'] as List)
-            .map((d) => OrphanDot.fromJson(d as Map<String, dynamic>))
-            .toList()
+              .map((d) => OrphanDot.fromJson(d as Map<String, dynamic>))
+              .toList()
         : const [],
     version: json['version'] as int? ?? 1,
   );

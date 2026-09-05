@@ -96,11 +96,35 @@ class GridComponent extends PositionComponent {
     final themeColors = AppThemes.getThemeColors(gameState.theme);
     final dotColor = themeColors.arrowColor;
 
+    final isShaped = gameState.level.maskShape != MaskShape.square;
+    if (isShaped) {
+      final tilePaint = Paint()
+        ..color = dotColor.withValues(alpha: 0.04)
+        ..style = PaintingStyle.fill;
+      for (final cellKey in _mask) {
+        final parts = cellKey.split(',');
+        final r = int.parse(parts[0]);
+        final c = int.parse(parts[1]);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(
+              c * cs + cs * 0.04,
+              r * cs + cs * 0.04,
+              cs * 0.92,
+              cs * 0.92,
+            ),
+            Radius.circular(cs * 0.16),
+          ),
+          tilePaint,
+        );
+      }
+    }
+
     final inPaint = Paint()
-      ..color = dotColor.withValues(alpha: 0.24)
+      ..color = dotColor.withValues(alpha: isShaped ? 0.28 : 0.24)
       ..style = PaintingStyle.fill;
     final outPaint = Paint()
-      ..color = dotColor.withValues(alpha: 0.07)
+      ..color = dotColor.withValues(alpha: isShaped ? 0.04 : 0.07)
       ..style = PaintingStyle.fill;
 
     for (int r = 0; r < gridSize; r++) {
@@ -132,15 +156,25 @@ class GridComponent extends PositionComponent {
       final parts = entry.key.split(',');
       final dotR = int.parse(parts[0]);
       final dotC = int.parse(parts[1]);
-      _drawOrphanDot(canvas, Offset((dotC + 0.5) * cs, (dotR + 0.5) * cs),
-          entry.value, cs, themeColors);
+      _drawOrphanDot(
+        canvas,
+        Offset((dotC + 0.5) * cs, (dotR + 0.5) * cs),
+        entry.value,
+        cs,
+        themeColors,
+      );
     }
 
     super.render(canvas);
   }
 
   static void _drawOrphanDot(
-      Canvas canvas, Offset center, OrphanDotType type, double cs, ThemeColors themeColors) {
+    Canvas canvas,
+    Offset center,
+    OrphanDotType type,
+    double cs,
+    ThemeColors themeColors,
+  ) {
     if (type == OrphanDotType.neutral) return;
 
     canvas.drawCircle(
@@ -162,11 +196,20 @@ class GridComponent extends PositionComponent {
 
     final ArrowDirection dir;
     switch (type) {
-      case OrphanDotType.up:    dir = ArrowDirection.up;    break;
-      case OrphanDotType.down:  dir = ArrowDirection.down;  break;
-      case OrphanDotType.left:  dir = ArrowDirection.left;  break;
-      case OrphanDotType.right: dir = ArrowDirection.right; break;
-      default: return;
+      case OrphanDotType.up:
+        dir = ArrowDirection.up;
+        break;
+      case OrphanDotType.down:
+        dir = ArrowDirection.down;
+        break;
+      case OrphanDotType.left:
+        dir = ArrowDirection.left;
+        break;
+      case OrphanDotType.right:
+        dir = ArrowDirection.right;
+        break;
+      default:
+        return;
     }
 
     canvas.save();
@@ -214,8 +257,9 @@ class GridComponent extends PositionComponent {
     }
     if (_arrowComponents.length != gameState.arrows.length) {
       final current = gameState.arrows.map((a) => a.id).toSet();
-      final gone =
-          _arrowComponents.keys.where((id) => !current.contains(id)).toList();
+      final gone = _arrowComponents.keys
+          .where((id) => !current.contains(id))
+          .toList();
       for (final id in gone) {
         _arrowComponents[id]?.removeFromParent();
         _arrowComponents.remove(id);

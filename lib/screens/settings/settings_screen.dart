@@ -60,7 +60,16 @@ class SettingsScreen extends ConsumerWidget {
               _buildPreferenceTile(
                 title: 'HAPTIC FEEDBACK',
                 value: progress.hapticsEnabled,
-                onChanged: (_) => ref.read(progressRepositoryProvider).toggleHaptics(),
+                onChanged: (_) =>
+                    ref.read(progressRepositoryProvider).toggleHaptics(),
+                accentColor: themeColors.accentColor,
+              ),
+              const SizedBox(height: 14),
+              _buildPreferenceTile(
+                title: 'INFINITE LIVES',
+                value: progress.heartRemover,
+                onChanged: (_) =>
+                    ref.read(progressRepositoryProvider).toggleHeartRemover(),
                 accentColor: themeColors.accentColor,
               ),
               const SizedBox(height: 24),
@@ -76,7 +85,8 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               ...GameTheme.values.map((theme) {
                 final isSelected = progress.selectedTheme == theme;
-                final isDefaultUnlocked = theme == GameTheme.classic ||
+                final isDefaultUnlocked =
+                    theme == GameTheme.classic ||
                     theme == GameTheme.neon ||
                     theme == GameTheme.retro ||
                     theme == GameTheme.cyber;
@@ -92,18 +102,25 @@ class SettingsScreen extends ConsumerWidget {
                   },
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 14),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isSelected ? previewColors.accentColor : AppColors.surfaceLight,
+                        color: isSelected
+                            ? previewColors.accentColor
+                            : AppColors.surfaceLight,
                         width: 2,
                       ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: previewColors.accentDark.withValues(alpha: 0.4),
+                                color: previewColors.accentDark.withValues(
+                                  alpha: 0.4,
+                                ),
                                 offset: const Offset(0, 4),
                                 blurRadius: 0,
                               ),
@@ -120,14 +137,20 @@ class SettingsScreen extends ConsumerWidget {
                             fontWeight: FontWeight.w900,
                             color: isSelected
                                 ? previewColors.accentColor
-                                : (isLocked ? AppColors.textMuted : AppColors.textPrimary),
+                                : (isLocked
+                                      ? AppColors.textMuted
+                                      : AppColors.textPrimary),
                             letterSpacing: 1.5,
                           ),
                         ),
                         Row(
                           children: [
                             if (isLocked) ...[
-                              const Icon(Icons.lock, color: AppColors.textMuted, size: 20),
+                              const Icon(
+                                Icons.lock,
+                                color: AppColors.textMuted,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                             ],
                             Container(
@@ -136,7 +159,10 @@ class SettingsScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: previewColors.arrowColor,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white24, width: 1),
+                                border: Border.all(
+                                  color: Colors.white24,
+                                  width: 1,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -146,7 +172,10 @@ class SettingsScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 gradient: previewColors.bgGradient,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white24, width: 1),
+                                border: Border.all(
+                                  color: Colors.white24,
+                                  width: 1,
+                                ),
                               ),
                             ),
                           ],
@@ -174,10 +203,7 @@ class SettingsScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.surfaceLight,
-          width: 2,
-        ),
+        border: Border.all(color: AppColors.surfaceLight, width: 2),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -226,9 +252,18 @@ class _UnlockDialogState extends State<_UnlockDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final progress = widget.ref.watch(progressRepositoryProvider);
+    final themeColors = AppThemes.getThemeColors(progress.selectedTheme);
+
     return Dialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: themeColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(
+          color: themeColors.accentColor.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(28),
         child: SingleChildScrollView(
@@ -248,10 +283,7 @@ class _UnlockDialogState extends State<_UnlockDialog> {
               const Text(
                 'Unlock all custom themes and premium styling options.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -259,7 +291,9 @@ class _UnlockDialogState extends State<_UnlockDialog> {
                   backgroundColor: const Color(0xFFFFDD00),
                   foregroundColor: Colors.black,
                   minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: () async {
                   try {
@@ -291,7 +325,10 @@ class _UnlockDialogState extends State<_UnlockDialog> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+                    borderSide: BorderSide(
+                      color: themeColors.accentColor,
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -301,26 +338,38 @@ class _UnlockDialogState extends State<_UnlockDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
+                      backgroundColor: themeColors.accentColor,
                       foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                     onPressed: () async {
                       final code = _controller.text;
                       final messenger = ScaffoldMessenger.of(context);
                       final navigator = Navigator.of(context);
-                      final success = await widget.ref.read(progressRepositoryProvider).unlockSkins(code);
+                      final success = await widget.ref
+                          .read(progressRepositoryProvider)
+                          .unlockSkins(code);
                       if (!mounted) return;
                       if (success) {
                         navigator.pop();
                         messenger.showSnackBar(
-                          const SnackBar(content: Text('All themes and skins unlocked!')),
+                          const SnackBar(
+                            content: Text('All themes and skins unlocked!'),
+                          ),
                         );
                       } else {
                         setState(() {
@@ -328,7 +377,10 @@ class _UnlockDialogState extends State<_UnlockDialog> {
                         });
                       }
                     },
-                    child: const Text('Unlock Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Unlock Now',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),

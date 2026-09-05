@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'package:flame/game.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -90,7 +90,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (mounted) setState(() => _isLoadingLevel = true);
 
     try {
-      final level = await levelRepo.getLevelAsync(levelNum, preGenerateNext: !widget.isRandom);
+      final level = await levelRepo.getLevelAsync(
+        levelNum,
+        preGenerateNext: !widget.isRandom,
+      );
       if (!mounted) return;
       _level = level;
       _initGame();
@@ -112,10 +115,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   String? _comboText;
   Timer? _comboTimer;
-  Timer? _bonusTimer;
 
-  int get _startingLives =>
-      widget.gameMode == GameMode.zen ? 999 : AppConstants.maxLives;
+  Timer? _bonusTimer;
+  bool _confirmingLeave = false;
 
   void _triggerShake() {
     _shakeTimer?.cancel();
@@ -173,15 +175,18 @@ class _GameScreenState extends ConsumerState<GameScreen>
   }
 
   void _initGame() {
-    _lives = _startingLives;
+    final progress = ref.read(progressRepositoryProvider);
+    final isLifeFree = widget.gameMode == GameMode.zen || progress.heartRemover;
+    _lives = isLifeFree ? 999 : AppConstants.maxLives;
     _showingGameOver = false;
     _gameState?.removeListener(_onGameStateChanged);
     _gameState = GameState(
       level: _level,
-      theme: ref.read(progressRepositoryProvider).selectedTheme,
+      theme: progress.selectedTheme,
+      heartRemover: progress.heartRemover,
       onLevelComplete: _onLevelComplete,
       onGameOver: widget.gameMode == GameMode.zen ? () {} : _onGameOver,
-      onLifeLost: widget.gameMode == GameMode.zen ? () {} : _onLifeLost,
+      onLifeLost: isLifeFree ? () {} : _onLifeLost,
       gameMode: widget.gameMode,
       onCombo: _triggerCombo,
       onCameraShake: _triggerShake,
@@ -193,7 +198,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       gameState: _gameState!,
       onLevelComplete: _onLevelComplete,
       onGameOver: widget.gameMode == GameMode.zen ? () {} : _onGameOver,
-      onLifeLost: widget.gameMode == GameMode.zen ? () {} : _onLifeLost,
+      onLifeLost: isLifeFree ? () {} : _onLifeLost,
     );
 
     _resetTimerForLevel();
@@ -221,13 +226,15 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final stars = ProgressRepository.calculateStars(_gameState!.livesLost);
 
     if (!widget.isRandom && widget.gameMode == GameMode.classic) {
-      progress.recordLevelComplete(LevelResult(
-        levelNumber: _level.levelNumber,
-        stars: stars,
-        livesLost: _gameState!.livesLost,
-        completed: true,
-        completedAt: DateTime.now(),
-      ));
+      progress.recordLevelComplete(
+        LevelResult(
+          levelNumber: _level.levelNumber,
+          stars: stars,
+          livesLost: _gameState!.livesLost,
+          completed: true,
+          completedAt: DateTime.now(),
+        ),
+      );
     }
 
     if (widget.gameMode == GameMode.timeAttack) {
@@ -266,13 +273,111 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   Future<void> _handleRestart() async {
     if (mounted) {
+      final isLifeFree =
+          widget.gameMode == GameMode.zen ||
+          ref.read(progressRepositoryProvider).heartRemover;
       setState(() {
         _showingGameOver = false;
         _showingComplete = false;
         _game.resetLevel();
-        _lives = _startingLives;
+        _lives = isLifeFree ? 999 : AppConstants.maxLives;
         _resetTimerForLevel();
       });
+    }
+  }
+
+  Future<bool> _confirmLeaveLevel() async {
+    if (_showingComplete || _showingGameOver) return true;
+    final progress = ref.read(progressRepositoryProvider);
+    final themeColors = AppThemes.getThemeColors(progress.selectedTheme);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: themeColors.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: themeColors.accentColor.withValues(alpha: 0.35),
+              width: 2.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColors.accentColor.withValues(alpha: 0.18),
+                blurRadius: 32,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.exit_to_app_rounded,
+                color: themeColors.accentColor,
+                size: 48,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Leave Level?',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Your current level progress will be lost.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _DialogButton(
+                label: 'Resume',
+                icon: Icons.play_arrow_rounded,
+                textColor: AppColors.textPrimary,
+                iconColor: themeColors.accentColor,
+                onTap: () => Navigator.pop(ctx, false),
+              ),
+              const SizedBox(height: 10),
+              _DialogButton(
+                label: 'Leave',
+                icon: Icons.close_rounded,
+                textColor: AppColors.textSecondary,
+                iconColor: themeColors.accentColor,
+                onTap: () => Navigator.pop(ctx, true),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<void> _handleBack() async {
+    if (_confirmingLeave) return;
+    _confirmingLeave = true;
+    bool shouldLeave;
+    try {
+      shouldLeave = await _confirmLeaveLevel();
+    } finally {
+      _confirmingLeave = false;
+    }
+    if (!shouldLeave || !mounted) return;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
     }
   }
 
@@ -320,15 +425,19 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   Future<void> _showGameOverDialog() async {
     final levelType = AppConstants.levelTypeFor(_level.levelNumber);
-    final hasTimer = (levelType == LevelType.god && _level.levelNumber > 100) ||
+    final hasTimer =
+        (levelType == LevelType.god && _level.levelNumber > 100) ||
         (levelType == LevelType.boss && _level.levelNumber > 200);
 
     int continueTime = 0;
     if (hasTimer && _gameState != null) {
-      final remainingArrows =
-          _gameState!.arrows.where((a) => a.state != ArrowState.sliding).length;
-      continueTime =
-          _calculateContinueDuration(_level.levelNumber, remainingArrows);
+      final remainingArrows = _gameState!.arrows
+          .where((a) => a.state != ArrowState.sliding)
+          .length;
+      continueTime = _calculateContinueDuration(
+        _level.levelNumber,
+        remainingArrows,
+      );
     }
 
     await showDialog(
@@ -398,16 +507,24 @@ class _GameScreenState extends ConsumerState<GameScreen>
   int _calculateLevelTimerDuration(int levelNum, int totalArrows) {
     final type = AppConstants.levelTypeFor(levelNum);
     if (type == LevelType.god && levelNum > 100) {
-      final baseSeconds =
-          (45.0 - (levelNum - 100) * (20.0 / 400.0)).clamp(25.0, 45.0);
-      final secondsPerArrow =
-          (2.5 - (levelNum - 100) * (1.0 / 400.0)).clamp(1.5, 2.5);
+      final baseSeconds = (45.0 - (levelNum - 100) * (20.0 / 400.0)).clamp(
+        25.0,
+        45.0,
+      );
+      final secondsPerArrow = (2.5 - (levelNum - 100) * (1.0 / 400.0)).clamp(
+        1.5,
+        2.5,
+      );
       return (baseSeconds + secondsPerArrow * totalArrows).round();
     } else if (type == LevelType.boss && levelNum > 200) {
-      final baseSeconds =
-          (40.0 - (levelNum - 200) * (20.0 / 300.0)).clamp(20.0, 40.0);
-      final secondsPerArrow =
-          (2.2 - (levelNum - 200) * (0.8 / 300.0)).clamp(1.4, 2.2);
+      final baseSeconds = (40.0 - (levelNum - 200) * (20.0 / 300.0)).clamp(
+        20.0,
+        40.0,
+      );
+      final secondsPerArrow = (2.2 - (levelNum - 200) * (0.8 / 300.0)).clamp(
+        1.4,
+        2.2,
+      );
       return (baseSeconds + secondsPerArrow * totalArrows).round();
     }
     return 0;
@@ -416,12 +533,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
   int _calculateContinueDuration(int levelNum, int remainingArrows) {
     final type = AppConstants.levelTypeFor(levelNum);
     if (type == LevelType.god) {
-      final secondsPerArrow =
-          (2.2 - (levelNum - 100) * (0.7 / 400.0)).clamp(1.5, 2.2);
+      final secondsPerArrow = (2.2 - (levelNum - 100) * (0.7 / 400.0)).clamp(
+        1.5,
+        2.2,
+      );
       return (20.0 + secondsPerArrow * remainingArrows).round();
     } else if (type == LevelType.boss) {
-      final secondsPerArrow =
-          (2.0 - (levelNum - 200) * (0.6 / 300.0)).clamp(1.4, 2.0);
+      final secondsPerArrow = (2.0 - (levelNum - 200) * (0.6 / 300.0)).clamp(
+        1.4,
+        2.0,
+      );
       return (15.0 + secondsPerArrow * remainingArrows).round();
     }
     return 45;
@@ -439,12 +560,15 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _startLevelTimer();
     } else if (widget.gameMode == GameMode.classic) {
       final levelType = AppConstants.levelTypeFor(_level.levelNumber);
-      final hasTimer = (levelType == LevelType.god && _level.levelNumber > 100) ||
+      final hasTimer =
+          (levelType == LevelType.god && _level.levelNumber > 100) ||
           (levelType == LevelType.boss && _level.levelNumber > 200);
 
       if (hasTimer) {
         _totalTime = _calculateLevelTimerDuration(
-            _level.levelNumber, _level.arrows.length);
+          _level.levelNumber,
+          _level.arrows.length,
+        );
         _timeRemaining = _totalTime;
         _startLevelTimer();
       } else {
@@ -469,7 +593,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
           _showingGameOver ||
           _isLoadingLevel ||
           !_isLevelReady ||
-          _isAppBackgrounded) {
+          _isAppBackgrounded ||
+          _confirmingLeave) {
         return;
       }
 
@@ -505,185 +630,157 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final totalArrows = _level.arrows.length;
     final activeArrows =
         _gameState?.arrows.where((a) => a.state != ArrowState.sliding).length ??
-            totalArrows;
+        totalArrows;
     final clearedArrows = totalArrows - activeArrows;
-    final progressVal =
-        totalArrows > 0 ? (clearedArrows / totalArrows).clamp(0.0, 1.0) : 0.0;
+    final progressVal = totalArrows > 0
+        ? (clearedArrows / totalArrows).clamp(0.0, 1.0)
+        : 0.0;
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: themeColors.bgGradient),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _TopBar(
-                level: _level,
-                isRandom: widget.isRandom,
-                onBack: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  } else {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HomeScreen()),
-                    );
-                  }
-                },
-                gameMode: widget.gameMode,
-                score: _timeAttackScore,
-              ),
-              if (_totalTime > 0 || widget.gameMode == GameMode.timeAttack)
-                RepaintBoundary(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _TimerDisplay(
-                      timeRemaining: _timeRemaining,
-                      totalTime: widget.gameMode == GameMode.timeAttack ? 99 : _totalTime,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        body: Container(
+          decoration: BoxDecoration(gradient: themeColors.bgGradient),
+          child: SafeArea(
+            child: Column(
+              children: [
+                _TopBar(
+                  level: _level,
+                  isRandom: widget.isRandom,
+                  onBack: _handleBack,
+                  gameMode: widget.gameMode,
+                  score: _timeAttackScore,
+                ),
+                if (_totalTime > 0 || widget.gameMode == GameMode.timeAttack)
+                  RepaintBoundary(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _TimerDisplay(
+                        timeRemaining: _timeRemaining,
+                        totalTime: widget.gameMode == GameMode.timeAttack
+                            ? 99
+                            : _totalTime,
+                      ),
                     ),
                   ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final boardSize = min(
+                        constraints.maxWidth,
+                        constraints.maxHeight - 16,
+                      );
+                      return Transform.translate(
+                        offset: Offset(_shakeOffset, 0),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            RepaintBoundary(
+                              child: InteractiveViewer(
+                                minScale: 0.8,
+                                maxScale: 4.0,
+                                boundaryMargin: const EdgeInsets.all(60),
+                                clipBehavior: Clip.hardEdge,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: boardSize,
+                                    height: boardSize,
+                                    child: GameWidget(game: _game),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (_comboText != null)
+                              Positioned(
+                                top: 20,
+                                child: RepaintBoundary(
+                                  child:
+                                      Text(
+                                            _comboText!,
+                                            style: const TextStyle(
+                                              fontSize: 26,
+                                              fontWeight: FontWeight.w900,
+                                              color: AppColors.primary,
+                                              letterSpacing: 1.5,
+                                              shadows: [
+                                                Shadow(
+                                                  color: Colors.black87,
+                                                  blurRadius: 12,
+                                                  offset: Offset(0, 2),
+                                                ),
+                                                Shadow(
+                                                  color: AppColors.primary,
+                                                  blurRadius: 16,
+                                                ),
+                                              ],
+                                            ),
+                                          )
+                                          .animate()
+                                          .scale(
+                                            begin: const Offset(0.5, 0.5),
+                                            end: const Offset(1.15, 1.15),
+                                            duration: 200.ms,
+                                            curve: Curves.elasticOut,
+                                          )
+                                          .then()
+                                          .scale(
+                                            begin: const Offset(1.15, 1.15),
+                                            end: const Offset(1.0, 1.0),
+                                            duration: 100.ms,
+                                          ),
+                                ),
+                              ),
+                            if (_showBonusAnimation)
+                              Positioned(
+                                top: 60,
+                                child:
+                                    Text(
+                                          _bonusText,
+                                          style: const TextStyle(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.w900,
+                                            color: Colors.orangeAccent,
+                                            letterSpacing: 1.5,
+                                            shadows: [
+                                              Shadow(
+                                                color: Colors.black87,
+                                                blurRadius: 12,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                        .animate()
+                                        .fadeIn(duration: 200.ms)
+                                        .slideY(
+                                          begin: 0.5,
+                                          end: -0.2,
+                                          duration: 600.ms,
+                                          curve: Curves.easeOut,
+                                        )
+                                        .fadeOut(
+                                          delay: 500.ms,
+                                          duration: 300.ms,
+                                        ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final boardSize =
-                        min(constraints.maxWidth, constraints.maxHeight - 16);
-                    return Transform.translate(
-                      offset: Offset(_shakeOffset, 0),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          RepaintBoundary(
-                            child: InteractiveViewer(
-                              minScale: 0.8,
-                              maxScale: 4.0,
-                              boundaryMargin: const EdgeInsets.all(60),
-                              clipBehavior: Clip.hardEdge,
-                              child: Center(
-                                child: SizedBox(
-                                  width: boardSize,
-                                  height: boardSize,
-                                  child: GameWidget(game: _game),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: 24,
-                            child: IgnorePointer(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      AppColors.background,
-                                      AppColors.background.withValues(alpha: 0.0),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            height: 24,
-                            child: IgnorePointer(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    colors: [
-                                      AppColors.background,
-                                      AppColors.background.withValues(alpha: 0.0),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (_comboText != null)
-                            Positioned(
-                              top: 20,
-                              child: RepaintBoundary(
-                                child: Text(
-                                  _comboText!,
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.primary,
-                                    letterSpacing: 1.5,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black87,
-                                        blurRadius: 12,
-                                        offset: Offset(0, 2),
-                                      ),
-                                      Shadow(
-                                        color: AppColors.primary,
-                                        blurRadius: 16,
-                                      ),
-                                    ],
-                                  ),
-                                )
-                                    .animate()
-                                    .scale(
-                                        begin: const Offset(0.5, 0.5),
-                                        end: const Offset(1.15, 1.15),
-                                        duration: 200.ms,
-                                        curve: Curves.elasticOut)
-                                    .then()
-                                    .scale(
-                                        begin: const Offset(1.15, 1.15),
-                                        end: const Offset(1.0, 1.0),
-                                        duration: 100.ms),
-                              ),
-                            ),
-                          if (_showBonusAnimation)
-                            Positioned(
-                              top: 60,
-                              child: Text(
-                                _bonusText,
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.orangeAccent,
-                                  letterSpacing: 1.5,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.black87,
-                                      blurRadius: 12,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                              )
-                                  .animate()
-                                  .fadeIn(duration: 200.ms)
-                                  .slideY(
-                                      begin: 0.5,
-                                      end: -0.2,
-                                      duration: 600.ms,
-                                      curve: Curves.easeOut)
-                                  .fadeOut(delay: 500.ms, duration: 300.ms),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
+                _BottomBar(
+                  lives: _lives,
+                  progress: progressVal,
+                  gameMode: widget.gameMode,
+                  heartRemover: progressState.heartRemover,
                 ),
-              ),
-              _BottomBar(
-                lives: _lives,
-                progress: progressVal,
-                gameMode: widget.gameMode,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -697,10 +794,7 @@ class _TimerDisplay extends ConsumerWidget {
   final int timeRemaining;
   final int totalTime;
 
-  const _TimerDisplay({
-    required this.timeRemaining,
-    required this.totalTime,
-  });
+  const _TimerDisplay({required this.timeRemaining, required this.totalTime});
 
   String _formatTime(int seconds) {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
@@ -712,7 +806,7 @@ class _TimerDisplay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progress = (timeRemaining / totalTime).clamp(0.0, 1.0);
     final isLowTime = timeRemaining <= 15 || timeRemaining <= totalTime * 0.15;
-    
+
     final progressState = ref.watch(progressRepositoryProvider);
     final themeColors = AppThemes.getThemeColors(progressState.selectedTheme);
     final color = isLowTime ? const Color(0xFF808080) : themeColors.accentColor;
@@ -741,11 +835,7 @@ class _TimerDisplay extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.hourglass_top,
-                color: color,
-                size: 16,
-              ),
+              Icon(Icons.hourglass_top, color: color, size: 16),
               const SizedBox(width: 6),
               Text(
                 _formatTime(timeRemaining),
@@ -776,14 +866,13 @@ class _TimerDisplay extends ConsumerWidget {
 
     if (isLowTime) {
       content = content
-          .animate(
-            onPlay: (controller) => controller.repeat(reverse: true),
-          )
+          .animate(onPlay: (controller) => controller.repeat(reverse: true))
           .scaleXY(
-              begin: 0.96,
-              end: 1.04,
-              duration: 400.ms,
-              curve: Curves.easeInOut);
+            begin: 0.96,
+            end: 1.04,
+            duration: 400.ms,
+            curve: Curves.easeInOut,
+          );
     }
 
     return content;
@@ -829,8 +918,11 @@ class _TopBar extends StatelessWidget {
               onTap: onBack,
               child: const Padding(
                 padding: EdgeInsets.all(8.0),
-                child: Icon(Icons.arrow_back,
-                    color: AppColors.textPrimary, size: 22),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: AppColors.textPrimary,
+                  size: 22,
+                ),
               ),
             ),
           ),
@@ -859,11 +951,13 @@ class _BottomBar extends StatelessWidget {
   final int lives;
   final double progress;
   final GameMode gameMode;
+  final bool heartRemover;
 
   const _BottomBar({
     required this.lives,
     required this.progress,
     required this.gameMode,
+    this.heartRemover = false,
   });
 
   @override
@@ -881,12 +975,15 @@ class _BottomBar extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: AppColors.surfaceLight,
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.primary,
+                ),
               ),
             ),
           ),
-          if (gameMode == GameMode.zen)
+          if (heartRemover || gameMode == GameMode.timeAttack)
+            const SizedBox()
+          else if (gameMode == GameMode.zen)
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -913,8 +1010,6 @@ class _BottomBar extends StatelessWidget {
                 ),
               ],
             )
-          else if (gameMode == GameMode.timeAttack)
-            const SizedBox()
           else
             LivesBar(lives: lives, maxLives: AppConstants.maxLives),
         ],
@@ -923,7 +1018,7 @@ class _BottomBar extends StatelessWidget {
   }
 }
 
-class _LevelCompleteDialog extends StatelessWidget {
+class _LevelCompleteDialog extends ConsumerWidget {
   final LevelModel level;
   final int stars;
   final bool isRandom;
@@ -939,70 +1034,87 @@ class _LevelCompleteDialog extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(progressRepositoryProvider);
+    final themeColors = AppThemes.getThemeColors(progress.selectedTheme);
+
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-          color: AppColors.background,
+          color: themeColors.surface,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.surfaceLight, width: 3),
+          border: Border.all(
+            color: themeColors.accentColor.withValues(alpha: 0.35),
+            width: 2.5,
+          ),
           boxShadow: [
             BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                blurRadius: 32),
+              color: themeColors.accentColor.withValues(alpha: 0.18),
+              blurRadius: 32,
+            ),
           ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Level Complete!',
-                style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary)),
+            const Text(
+              'Level Complete!',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                  3,
-                  (i) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Icon(
-                          i < stars
-                              ? Icons.star_rounded
-                              : Icons.star_border_rounded,
-                          color:
-                              i < stars ? Colors.white : AppColors.surfaceLight,
-                          size: 38,
+                3,
+                (i) =>
+                    Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Icon(
+                            i < stars
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            color: i < stars
+                                ? themeColors.accentColor
+                                : themeColors.surface.withValues(alpha: 0.6),
+                            size: 38,
+                          ),
+                        )
+                        .animate(delay: Duration(milliseconds: 200 + i * 150))
+                        .scale(
+                          begin: const Offset(0, 0),
+                          end: const Offset(1, 1),
+                          curve: Curves.elasticOut,
                         ),
-                      )
-                          .animate(delay: Duration(milliseconds: 200 + i * 150))
-                          .scale(
-                              begin: const Offset(0, 0),
-                              end: const Offset(1, 1),
-                              curve: Curves.elasticOut)),
+              ),
             ),
             const SizedBox(height: 24),
             if (level.levelNumber == AppConstants.finalLevelNumber) ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: themeColors.background,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
-                    const Icon(
-                      Icons.emoji_events,
-                      color: AppColors.textPrimary,
-                      size: 32,
-                    ).animate(onPlay: (c) => c.repeat()).scale(
-                        begin: const Offset(0.9, 0.9),
-                        end: const Offset(1.1, 1.1),
-                        duration: 1.seconds,
-                        curve: Curves.easeInOut),
+                    Icon(
+                          Icons.emoji_events,
+                          color: themeColors.accentColor,
+                          size: 32,
+                        )
+                        .animate(onPlay: (c) => c.repeat())
+                        .scale(
+                          begin: const Offset(0.9, 0.9),
+                          end: const Offset(1.1, 1.1),
+                          duration: 1.seconds,
+                          curve: Curves.easeInOut,
+                        ),
                     const SizedBox(height: 10),
                     const Text(
                       'You Finished the Game!',
@@ -1039,7 +1151,7 @@ class _LevelCompleteDialog extends StatelessWidget {
               label: 'Home',
               icon: Icons.home_rounded,
               textColor: AppColors.textPrimary,
-              iconColor: AppColors.textPrimary,
+              iconColor: themeColors.accentColor,
               onTap: onMenu,
             ),
             const SizedBox(height: 10),
@@ -1047,7 +1159,7 @@ class _LevelCompleteDialog extends StatelessWidget {
               label: 'Buy me a coffee',
               icon: Icons.coffee_rounded,
               textColor: AppColors.textPrimary,
-              iconColor: AppColors.textPrimary,
+              iconColor: themeColors.accentColor,
               onTap: () async {
                 final uri = Uri.parse('https://ko-fi.com/sidhant947');
                 try {
@@ -1062,7 +1174,7 @@ class _LevelCompleteDialog extends StatelessWidget {
   }
 }
 
-class _GameOverDialog extends StatelessWidget {
+class _GameOverDialog extends ConsumerWidget {
   final LevelModel level;
   final bool isTimeout;
   final int continueTime;
@@ -1084,21 +1196,27 @@ class _GameOverDialog extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isTimeAttack = gameMode == GameMode.timeAttack;
+    final progress = ref.watch(progressRepositoryProvider);
+    final themeColors = AppThemes.getThemeColors(progress.selectedTheme);
 
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-          color: AppColors.background,
+          color: themeColors.surface,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.surfaceLight, width: 3),
+          border: Border.all(
+            color: themeColors.accentColor.withValues(alpha: 0.35),
+            width: 2.5,
+          ),
           boxShadow: [
             BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                blurRadius: 32),
+              color: themeColors.accentColor.withValues(alpha: 0.18),
+              blurRadius: 32,
+            ),
           ],
         ),
         child: Column(
@@ -1108,7 +1226,9 @@ class _GameOverDialog extends StatelessWidget {
               isTimeAttack
                   ? Icons.timer_off_rounded
                   : (isTimeout ? Icons.hourglass_top : Icons.heart_broken),
-              color: isTimeAttack ? Colors.orangeAccent : AppColors.accent,
+              color: isTimeAttack
+                  ? Colors.orangeAccent
+                  : themeColors.accentColor,
               size: 52,
             ).animate().shake(duration: 500.ms),
             const SizedBox(height: 12),
@@ -1147,7 +1267,7 @@ class _GameOverDialog extends StatelessWidget {
               label: isTimeAttack ? 'Start New Run' : 'Restart Level',
               icon: Icons.refresh_rounded,
               textColor: AppColors.textPrimary,
-              iconColor: AppColors.textPrimary,
+              iconColor: themeColors.accentColor,
               onTap: onRestart,
             ),
             const SizedBox(height: 10),
@@ -1155,7 +1275,7 @@ class _GameOverDialog extends StatelessWidget {
               label: 'Home',
               icon: Icons.home_rounded,
               textColor: AppColors.textSecondary,
-              iconColor: AppColors.accent,
+              iconColor: themeColors.accentColor,
               onTap: onMenu,
             ),
           ],
@@ -1194,7 +1314,7 @@ class _DialogButton extends ConsumerWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: themeColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: themeColors.accentColor, width: 1.5),
           boxShadow: [
@@ -1210,7 +1330,13 @@ class _DialogButton extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: iconColor == Colors.white ? themeColors.accentColor : iconColor, size: 20),
+              Icon(
+                icon,
+                color: iconColor == Colors.white
+                    ? themeColors.accentColor
+                    : iconColor,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -1229,80 +1355,121 @@ class _DialogButton extends ConsumerWidget {
   }
 }
 
-class _BouncingDots extends StatefulWidget {
-  const _BouncingDots();
+class _LoaderAnimation extends StatefulWidget {
+  final Color color;
+  const _LoaderAnimation({required this.color});
 
   @override
-  State<_BouncingDots> createState() => _BouncingDotsState();
+  State<_LoaderAnimation> createState() => _LoaderAnimationState();
 }
 
-class _BouncingDotsState extends State<_BouncingDots>
+class _LoaderAnimationState extends State<_LoaderAnimation>
     with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
+  late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
+    _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1100),
     )..repeat();
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (i) {
-        return AnimatedBuilder(
-          animation: _ctrl,
-          builder: (context, child) {
-            final phase = (_ctrl.value + i * 0.33) % 1.0;
-            final t = (1 - (phase * 2 - 1).abs()).clamp(0.0, 1.0);
-            return Transform.translate(
-              offset: Offset(0, -8.0 * t),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 5),
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.5 + 0.5 * t),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            );
-          },
-        );
-      }),
-    );
-  }
-}
-
-class _LevelLoadingScreen extends StatefulWidget {
-  final ThemeColors themeColors;
-  const _LevelLoadingScreen({required this.themeColors});
-
-  @override
-  State<_LevelLoadingScreen> createState() => _LevelLoadingScreenState();
-}
-
-class _LevelLoadingScreenState extends State<_LevelLoadingScreen> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: widget.themeColors.bgGradient),
-        child: const Center(
-          child: _BouncingDots(),
-        ),
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return CustomPaint(
+            painter: _LoaderPainter(
+              progress: _controller.value,
+              color: widget.color,
+            ),
+          );
+        },
       ),
     );
   }
 }
 
+class _LoaderPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  _LoaderPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - 6) / 2;
+
+    final bgPaint = Paint()
+      ..color = color.withValues(alpha: 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5;
+    canvas.drawCircle(center, radius, bgPaint);
+
+    final startAngle = progress * 2 * pi;
+    const sweepAngle = pi * 0.75;
+
+    final arcPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 3.5;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      arcPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _LoaderPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.color != color;
+}
+
+class _LevelLoadingScreen extends StatelessWidget {
+  final ThemeColors themeColors;
+  const _LevelLoadingScreen({required this.themeColors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(gradient: themeColors.bgGradient),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _LoaderAnimation(color: themeColors.accentColor),
+              const SizedBox(height: 24),
+              Text(
+                'LOADING LEVEL...',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2.0,
+                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

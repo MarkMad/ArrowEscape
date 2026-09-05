@@ -6,7 +6,6 @@ import '../core/app_themes.dart';
 import '../core/game_mode.dart';
 
 class GameState extends ChangeNotifier {
-  
   late LevelModel _currentLevel;
   late List<ArrowModel> _arrows;
   int _lives = AppConstants.maxLives;
@@ -16,6 +15,7 @@ class GameState extends ChangeNotifier {
   bool _isDeadlocked = false;
   final GameTheme theme;
   final GameMode gameMode;
+  final bool heartRemover;
 
   late Map<String, OrphanDotType> _orphanDots;
 
@@ -23,7 +23,7 @@ class GameState extends ChangeNotifier {
   final Map<String, ArrowModel> _arrowsById = {};
 
   int get _effectiveMaxLives =>
-      gameMode == GameMode.zen ? 999 : AppConstants.maxLives;
+      (gameMode == GameMode.zen || heartRemover) ? 999 : AppConstants.maxLives;
 
   final void Function() onLevelComplete;
   final void Function() onGameOver;
@@ -31,10 +31,10 @@ class GameState extends ChangeNotifier {
   final void Function()? onDeadlock;
   final void Function()? onCombo;
   final void Function()? onCameraShake;
-  
+
   DateTime? _lastExitTime;
   int _comboCount = 0;
-  
+
   int get comboCount => _comboCount;
 
   GameState({
@@ -45,6 +45,7 @@ class GameState extends ChangeNotifier {
     required this.onLifeLost,
     this.onDeadlock,
     this.gameMode = GameMode.classic,
+    this.heartRemover = false,
     this.onCombo,
     this.onCameraShake,
   }) {
@@ -68,7 +69,7 @@ class GameState extends ChangeNotifier {
   bool get isGameOver => _isGameOver;
   bool get isDeadlocked => _isDeadlocked;
   LevelModel get level => _currentLevel;
-  
+
   Map<String, OrphanDotType> get orphanDots => _orphanDots;
 
   ArrowModel? arrowById(String id) => _arrowsById[id];
@@ -151,7 +152,8 @@ class GameState extends ChangeNotifier {
     }
 
     final now = DateTime.now();
-    if (_lastExitTime != null && now.difference(_lastExitTime!).inMilliseconds < 1500) {
+    if (_lastExitTime != null &&
+        now.difference(_lastExitTime!).inMilliseconds < 1500) {
       _comboCount++;
       if (_comboCount >= 2) {
         onCombo?.call();
@@ -164,7 +166,7 @@ class GameState extends ChangeNotifier {
     _arrows[index] = arrow.copyWith(state: ArrowState.sliding);
     _arrowsById[arrowId] = _arrows[index];
     _recordConsumedDots(arrowId, exitInfo.consumed);
-    
+
     for (final k in exitInfo.consumed) {
       _orphanDots.remove(k);
     }
@@ -176,7 +178,7 @@ class GameState extends ChangeNotifier {
   TapResult _handleBlocked(int index, ArrowModel arrow, String arrowId) {
     _arrows[index] = arrow.copyWith(state: ArrowState.blocked);
     _arrowsById[arrowId] = _arrows[index];
-    if (gameMode != GameMode.zen) {
+    if (gameMode != GameMode.zen && !heartRemover) {
       _lives--;
       _livesLost++;
       onLifeLost();
@@ -190,14 +192,14 @@ class GameState extends ChangeNotifier {
         notifyListeners();
       }
     });
- 
-    if (gameMode != GameMode.zen && _lives <= 0) {
+
+    if (gameMode != GameMode.zen && !heartRemover && _lives <= 0) {
       _isGameOver = true;
       onGameOver();
       notifyListeners();
       return TapResult.blocked;
     }
- 
+
     notifyListeners();
     return TapResult.blocked;
   }
@@ -249,7 +251,9 @@ class GameState extends ChangeNotifier {
   }
 
   void resetLevel() {
-    _arrows = _currentLevel.arrows.map((a) => a.copyWith(state: ArrowState.idle)).toList();
+    _arrows = _currentLevel.arrows
+        .map((a) => a.copyWith(state: ArrowState.idle))
+        .toList();
     _rebuildIndex();
     _orphanDots = {for (final od in _currentLevel.orphanDots) od.key: od.type};
     _consumedDotsByArrow.clear();
@@ -287,6 +291,6 @@ enum TapResult { exited, blocked, ignored }
 
 class _ExitInfo {
   final bool blocked;
-  final List<String> consumed; 
+  final List<String> consumed;
   const _ExitInfo(this.blocked, [this.consumed = const []]);
 }

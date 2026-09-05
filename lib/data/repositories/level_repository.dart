@@ -20,7 +20,10 @@ void _generateLevelIsolateEntry(Map<String, dynamic> message) {
 
 /// Runs the generator in a short-lived isolate that is killed on timeout,
 /// so slow generations don't pile up in the background.
-Future<LevelModel?> _generateInIsolate(int levelNumber, Duration timeout) async {
+Future<LevelModel?> _generateInIsolate(
+  int levelNumber,
+  Duration timeout,
+) async {
   final port = ReceivePort();
   final errorPort = ReceivePort();
   Isolate? isolate;
@@ -31,9 +34,11 @@ Future<LevelModel?> _generateInIsolate(int levelNumber, Duration timeout) async 
       errorsAreFatal: true,
       onError: errorPort.sendPort,
     );
-    final result = await (port.first as Future<LevelModel?>)
-        .timeout(timeout, onTimeout: () => null);
-    return result;
+    final result = await port.first.timeout(
+      timeout,
+      onTimeout: () => null,
+    );
+    return result as LevelModel?;
   } catch (e) {
     debugPrint('Isolate generation failed for level $levelNumber: $e');
     return null;
@@ -113,7 +118,10 @@ class LevelRepository {
       final cached = _tryLoadCached(levelNumber);
       if (cached != null) return;
 
-      final level = await _generateInIsolate(levelNumber, const Duration(seconds: 4));
+      final level = await _generateInIsolate(
+        levelNumber,
+        const Duration(seconds: 4),
+      );
       if (level != null) {
         _cache[levelNumber] = level;
         _saveToDisk(levelNumber, level);
@@ -131,26 +139,38 @@ class LevelRepository {
     }
   }
 
-  Future<LevelModel> getLevelAsync(int levelNumber, {bool preGenerateNext = true}) async {
-    if (preGenerateNext) {
-      preGenerateRangeAsync(levelNumber + 1, 3);
+  Future<LevelModel> getLevelAsync(
+    int levelNumber, {
+    bool preGenerateNext = true,
+  }) async {
+    final cached = _tryLoadCached(levelNumber);
+    if (cached != null) {
+      if (preGenerateNext) preGenerateRangeAsync(levelNumber + 1, 3);
+      return cached;
     }
 
-    final cached = _tryLoadCached(levelNumber);
-    if (cached != null) return cached;
-
     try {
-      final level = await _generateInIsolate(levelNumber, const Duration(seconds: 3));
+      final level = await _generateInIsolate(
+        levelNumber,
+        const Duration(seconds: 3),
+      );
       if (level == null) {
-        debugPrint('Isolate generation failed/timed out, generating synchronously');
+        debugPrint(
+          'Isolate generation failed/timed out, generating synchronously',
+        );
         return getLevel(levelNumber);
       }
       _cache[levelNumber] = level;
       _saveToDisk(levelNumber, level);
       return level;
     } catch (e) {
-      debugPrint('Isolate generation failed/timed out, generating synchronously: $e');
+      debugPrint(
+        'Isolate generation failed/timed out, generating synchronously: $e',
+      );
       return getLevel(levelNumber);
+    } finally {
+      // Prioritize the requested level before starting speculative generation.
+      if (preGenerateNext) preGenerateRangeAsync(levelNumber + 1, 3);
     }
   }
 

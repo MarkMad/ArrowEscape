@@ -17,6 +17,7 @@ class ProgressRepository extends ChangeNotifier {
   GameTheme _selectedTheme = GameTheme.classic;
   bool _skinsUnlocked = false;
   bool _hapticsEnabled = true;
+  bool _heartRemover = false;
 
   final Map<int, LevelResult> _levelResults = {};
 
@@ -27,6 +28,7 @@ class ProgressRepository extends ChangeNotifier {
   GameTheme get selectedTheme => _selectedTheme;
   bool get skinsUnlocked => _skinsUnlocked;
   bool get hapticsEnabled => _hapticsEnabled;
+  bool get heartRemover => _heartRemover;
 
   int getStarsForLevel(int level) => _levelResults[level]?.stars ?? 0;
 
@@ -54,10 +56,17 @@ class ProgressRepository extends ChangeNotifier {
     _lives = _box.get('lives', defaultValue: AppConstants.maxLives);
     _currentLevel = _box.get('currentLevel', defaultValue: 1);
     _highestUnlockedLevel = _box.get('highestUnlockedLevel', defaultValue: 1);
-    final themeStr = _box.get('selectedTheme', defaultValue: GameTheme.classic.name);
-    _selectedTheme = GameTheme.values.firstWhere((t) => t.name == themeStr, orElse: () => GameTheme.classic);
+    final themeStr = _box.get(
+      'selectedTheme',
+      defaultValue: GameTheme.classic.name,
+    );
+    _selectedTheme = GameTheme.values.firstWhere(
+      (t) => t.name == themeStr,
+      orElse: () => GameTheme.classic,
+    );
     _skinsUnlocked = _box.get('skinsUnlocked', defaultValue: false);
     _hapticsEnabled = _box.get('hapticsEnabled', defaultValue: true);
+    _heartRemover = _box.get('heartRemover', defaultValue: false);
     HapticHelper.hapticsEnabled = _hapticsEnabled;
 
     for (final key in _resultsBox.keys) {
@@ -83,11 +92,15 @@ class ProgressRepository extends ChangeNotifier {
       'selectedTheme': _selectedTheme.name,
       'skinsUnlocked': _skinsUnlocked,
       'hapticsEnabled': _hapticsEnabled,
+      'heartRemover': _heartRemover,
     });
   }
 
   Future<void> _saveResult(LevelResult result) async {
-    await _resultsBox.put(result.levelNumber.toString(), jsonEncode(result.toJson()));
+    await _resultsBox.put(
+      result.levelNumber.toString(),
+      jsonEncode(result.toJson()),
+    );
   }
 
   Future<void> setTheme(GameTheme theme) async {
@@ -103,6 +116,12 @@ class ProgressRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> toggleHeartRemover() async {
+    _heartRemover = !_heartRemover;
+    await _save();
+    notifyListeners();
+  }
+
   Future<bool> unlockSkins(String code) async {
     if (code.trim().toUpperCase() == 'THANKYOU') {
       _skinsUnlocked = true;
@@ -112,7 +131,6 @@ class ProgressRepository extends ChangeNotifier {
     }
     return false;
   }
-
 
   Future<void> recordLevelComplete(LevelResult result) async {
     final existing = _levelResults[result.levelNumber];

@@ -47,30 +47,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     switch (difficulty) {
       case 'easy':
         return AppConstants.randomEasyMin +
-            rng.nextInt(AppConstants.randomEasyMax - AppConstants.randomEasyMin + 1);
+            rng.nextInt(
+              AppConstants.randomEasyMax - AppConstants.randomEasyMin + 1,
+            );
       case 'medium':
         return AppConstants.randomMediumMin +
-            rng.nextInt(AppConstants.randomMediumMax - AppConstants.randomMediumMin + 1);
+            rng.nextInt(
+              AppConstants.randomMediumMax - AppConstants.randomMediumMin + 1,
+            );
       case 'hard':
         return AppConstants.randomHardMin +
-            rng.nextInt(AppConstants.randomHardMax - AppConstants.randomHardMin + 1);
+            rng.nextInt(
+              AppConstants.randomHardMax - AppConstants.randomHardMin + 1,
+            );
       case 'master':
         return AppConstants.randomMasterMin +
-            rng.nextInt(AppConstants.randomMasterMax - AppConstants.randomMasterMin + 1);
+            rng.nextInt(
+              AppConstants.randomMasterMax - AppConstants.randomMasterMin + 1,
+            );
       case 'expert':
         return AppConstants.randomExpertMin +
-            rng.nextInt(AppConstants.randomExpertMax - AppConstants.randomExpertMin + 1);
+            rng.nextInt(
+              AppConstants.randomExpertMax - AppConstants.randomExpertMin + 1,
+            );
       default:
         return 11;
     }
   }
 
   void _showRandomPuzzleDialog() {
+    final progress = ref.read(progressRepositoryProvider);
+    final themeColors = AppThemes.getThemeColors(progress.selectedTheme);
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: themeColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(
+            color: themeColors.accentColor.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: SingleChildScrollView(
@@ -128,7 +147,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text(
                     'Cancel',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
@@ -140,7 +162,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _playRandom(String difficulty) async {
-    Navigator.pop(context); 
+    Navigator.pop(context);
     final levelNum = _randomLevelForDifficulty(difficulty);
     if (!mounted) return;
     setState(() => _isNavigating = true);
@@ -154,9 +176,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showArcadeModesSelection(BuildContext context, int currentLevel) {
+    final progress = ref.read(progressRepositoryProvider);
+    final themeColors = AppThemes.getThemeColors(progress.selectedTheme);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: themeColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -261,7 +286,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted),
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: AppColors.textMuted,
+                        ),
                       ],
                     ),
                   ),
@@ -281,69 +310,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        elevation: 0,
-        leadingWidth: 70,
-        leading: Align(
-          alignment: Alignment.centerLeft,
-          child: GestureDetector(
-            onTap: () async {
-              try {
-                await launchUrl(Uri.parse('https://github.com/sidhant947/ArrowEscape'), mode: LaunchMode.externalApplication);
-              } catch (_) {}
-            },
-            child: Container(
-              margin: const EdgeInsets.only(left: 16),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(Icons.star, color: Colors.yellow, size: 18),
-            ),
-          ),
-        ),
-        centerTitle: true,
-        title: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            'LEVEL ${progress.currentLevel}',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-              letterSpacing: 1,
-            ),
-          ),
-        ),
-        actions: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () async {
-                try {
-                  await launchUrl(Uri.parse('https://ko-fi.com/sidhant947'), mode: LaunchMode.externalApplication);
-                } catch (_) {}
-              },
-              child: Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(68),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _AppBarIconButton(
+                  icon: Icons.star_rounded,
+                  iconColor: const Color(0xFFFFD700),
+                  themeColors: themeColors,
+                  onTap: () async {
+                    try {
+                      await launchUrl(
+                        Uri.parse('https://github.com/sidhant947/ArrowEscape'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } catch (_) {}
+                  },
                 ),
-                child: const Icon(Icons.favorite, color: Colors.pink, size: 18),
-              ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: themeColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: themeColors.accentColor.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeColors.accentDark.withValues(alpha: 0.25),
+                        offset: const Offset(0, 3),
+                        blurRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.flag_rounded,
+                        color: themeColors.accentColor,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'LEVEL ${progress.currentLevel}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _AppBarIconButton(
+                  icon: Icons.favorite_rounded,
+                  iconColor: const Color(0xFFFF4D6D),
+                  themeColors: themeColors,
+                  onTap: () async {
+                    try {
+                      await launchUrl(
+                        Uri.parse('https://ko-fi.com/sidhant947'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } catch (_) {}
+                  },
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
       body: Container(
         decoration: BoxDecoration(gradient: themeColors.bgGradient),
@@ -352,43 +397,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               const Spacer(flex: 2),
 
-              Icon(
-                Icons.arrow_upward,
-                size: 48,
-                color: AppColors.textPrimary,
-              ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-               .slideY(begin: 0, end: -0.15, duration: 1500.ms, curve: Curves.easeInOut)
-               .then()
-               .shimmer(duration: 1000.ms),
+              Icon(Icons.arrow_upward, size: 48, color: AppColors.textPrimary)
+                  .animate(
+                    onPlay: (controller) => controller.repeat(reverse: true),
+                  )
+                  .slideY(
+                    begin: 0,
+                    end: -0.15,
+                    duration: 1500.ms,
+                    curve: Curves.easeInOut,
+                  )
+                  .then()
+                  .shimmer(duration: 1000.ms),
 
               const SizedBox(height: 20),
 
               FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  AppConstants.appName,
-                  style: const TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    letterSpacing: 2,
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      AppConstants.appName,
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  )
+                  .animate()
+                  .fadeIn(duration: 800.ms)
+                  .scale(
+                    begin: const Offset(0.9, 0.9),
+                    end: const Offset(1.0, 1.0),
+                    curve: Curves.easeOutBack,
                   ),
-                ),
-              ).animate()
-               .fadeIn(duration: 800.ms)
-               .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0), curve: Curves.easeOutBack),
 
               const SizedBox(height: 12),
 
               const Text(
-                'Slide. Solve. Escape.',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textMuted,
-                  letterSpacing: 2,
-                ),
-              ).animate().fadeIn(delay: 300.ms, duration: 600.ms).slideY(begin: 0.5, end: 0),
+                    'Slide. Solve. Escape.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textMuted,
+                      letterSpacing: 2,
+                    ),
+                  )
+                  .animate()
+                  .fadeIn(delay: 300.ms, duration: 600.ms)
+                  .slideY(begin: 0.5, end: 0),
 
               const Spacer(flex: 3),
 
@@ -399,7 +456,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     interval: 100.ms,
                     effects: [
                       FadeEffect(duration: 500.ms),
-                      SlideEffect(begin: const Offset(0, 0.2), end: Offset.zero, curve: Curves.easeOutQuad),
+                      SlideEffect(
+                        begin: const Offset(0, 0.2),
+                        end: Offset.zero,
+                        curve: Curves.easeOutQuad,
+                      ),
                     ],
                     children: [
                       _MenuButton(
@@ -418,7 +479,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ),
                                   ),
                                 );
-                                if (mounted) setState(() => _isNavigating = false);
+                                if (mounted) {
+                                  setState(() => _isNavigating = false);
+                                }
                               },
                         showBorder: false,
                       ),
@@ -429,7 +492,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         label: 'LEVELS',
                         onTap: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const LevelSelectScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const LevelSelectScreen(),
+                          ),
                         ),
                       ),
 
@@ -439,7 +504,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         label: 'ARCADE MODES',
                         onTap: _isNavigating
                             ? null
-                            : () => _showArcadeModesSelection(context, progress.currentLevel),
+                            : () => _showArcadeModesSelection(
+                                context,
+                                progress.currentLevel,
+                              ),
                       ),
 
                       const SizedBox(height: 14),
@@ -455,7 +523,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         label: 'SETTINGS',
                         onTap: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
                         ),
                       ),
                     ],
@@ -578,6 +648,50 @@ class _DifficultyButton extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AppBarIconButton extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final ThemeColors themeColors;
+  final VoidCallback onTap;
+
+  const _AppBarIconButton({
+    required this.icon,
+    required this.iconColor,
+    required this.themeColors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticHelper.playClick();
+        onTap();
+      },
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: themeColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: themeColors.accentColor.withValues(alpha: 0.35),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: themeColors.accentDark.withValues(alpha: 0.25),
+              offset: const Offset(0, 3),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Center(child: Icon(icon, color: iconColor, size: 22)),
       ),
     );
   }
