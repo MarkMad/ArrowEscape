@@ -75,10 +75,19 @@ class GameState extends ChangeNotifier {
   ArrowModel? arrowById(String id) => _arrowsById[id];
 
   void handleArrowExitCompleted(String arrowId) {
+    if (_isComplete || _arrowsById[arrowId]?.state != ArrowState.sliding) {
+      return;
+    }
     _arrows.removeWhere((a) => a.id == arrowId);
     _arrowsById.remove(arrowId);
     _consumedDotsByArrow.remove(arrowId);
 
+    _checkLevelOutcome();
+    notifyListeners();
+  }
+
+  void _checkLevelOutcome() {
+    if (_isGameOver || _isComplete) return;
     if (_arrows.isEmpty) {
       _isComplete = true;
       onLevelComplete();
@@ -88,7 +97,6 @@ class GameState extends ChangeNotifier {
         onDeadlock?.call();
       }
     }
-    notifyListeners();
   }
 
   bool checkDeadlock() {
@@ -270,12 +278,14 @@ class GameState extends ChangeNotifier {
       _lives++;
       if (_isGameOver && _lives > 0) {
         _isGameOver = false;
+        _checkLevelOutcome();
       }
       notifyListeners();
     }
   }
 
   void forceGameOver() {
+    if (_isComplete || _isGameOver) return;
     _isGameOver = true;
     onGameOver();
     notifyListeners();
@@ -283,6 +293,7 @@ class GameState extends ChangeNotifier {
 
   void resumeFromTimeout() {
     _isGameOver = false;
+    _checkLevelOutcome();
     notifyListeners();
   }
 }

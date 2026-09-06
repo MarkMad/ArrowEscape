@@ -2,6 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:arrowescape/core/game_mode.dart';
+import 'package:arrowescape/core/constants.dart';
+import 'package:arrowescape/game/arrow_puzzle_game.dart';
+import 'package:arrowescape/widgets/lives_bar.dart';
+import 'package:flame/game.dart';
 import 'package:arrowescape/data/models/arrow.dart';
 import 'package:arrowescape/data/models/level.dart';
 import 'package:arrowescape/data/repositories/level_repository.dart';
@@ -52,7 +56,10 @@ void main() {
     await directory.delete(recursive: true);
   });
 
-  Future<void> launch(WidgetTester tester) async {
+  Future<void> launch(
+    WidgetTester tester, {
+    GameMode mode = GameMode.timeAttack,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -66,11 +73,8 @@ void main() {
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute<void>(
-                    builder: (_) => const GameScreen(
-                      level: 1,
-                      isRandom: true,
-                      gameMode: GameMode.timeAttack,
-                    ),
+                    builder: (_) =>
+                        GameScreen(level: 1, isRandom: true, gameMode: mode),
                   ),
                 ),
                 child: const Text('Start test game'),
@@ -118,6 +122,100 @@ void main() {
     await tester.pump(const Duration(seconds: 61));
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Start New Run'), findsOneWidget);
+    expect(find.text("Time's Up!"), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Start New Run'), findsOneWidget);
+    await tester.tap(find.text('Start New Run'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Start New Run'), findsNothing);
+    expect(find.text('01:00'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  ArrowPuzzleGame gameFor(WidgetTester tester) =>
+      tester
+              .widget<GameWidget>(
+                find.byWidgetPredicate((w) => w is GameWidget),
+              )
+              .game
+          as ArrowPuzzleGame;
+
+  testWidgets('completion dialog survives system back', (tester) async {
+    await launch(tester, mode: GameMode.classic);
+    final state = gameFor(tester).gameState;
+    state.tapArrow('a');
+    state.handleArrowExitCompleted('a');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Level Complete!'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Level Complete!'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('late exit cannot advance a timed-out run', (tester) async {
+    await launch(tester);
+    final state = gameFor(tester).gameState;
+    state.tapArrow('a');
+    state.forceGameOver();
+    state.handleArrowExitCompleted('a');
+    expect(state.isComplete, isFalse);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Start New Run'), findsOneWidget);
+    expect(find.text('Score: 0'), findsOneWidget);
+    expect(gameFor(tester).level.levelNumber, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('time attack shows lives and identifies life exhaustion', (
+    tester,
+  ) async {
+    await tester.runAsync(() => progress.toggleHeartRemover());
+    final blockedLevel = LevelModel(
+      levelNumber: 1,
+      gridSize: 3,
+      arrows: [
+        ArrowModel(
+          id: 'a',
+          row: 0,
+          col: 1,
+          direction: ArrowDirection.down,
+          path: [
+            [0, 1],
+          ],
+        ),
+        ArrowModel(
+          id: 'b',
+          row: 1,
+          col: 1,
+          direction: ArrowDirection.up,
+          path: [
+            [1, 1],
+          ],
+        ),
+      ],
+    );
+    await tester.runAsync(
+      () => Hive.box(
+        'levelCache',
+      ).put('cached_level_1', jsonEncode(blockedLevel.toJson())),
+    );
+    await launch(tester);
+    expect(tester.widget<LivesBar>(find.byType(LivesBar)).lives, 3);
+    final state = gameFor(tester).gameState;
+    for (var i = 0; i < 3; i++) {
+      state.tapArrow('a');
+      await tester.pump(AppConstants.arrowShakeDuration);
+    }
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Out of Lives!'), findsOneWidget);
+    expect(find.text("Time's Up!"), findsNothing);
+    expect(find.text('Start New Run'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

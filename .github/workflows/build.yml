@@ -3,13 +3,13 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*.*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. v1.0.0)'
+        description: 'Version tag (e.g. v1.0.0.1)'
         required: true
-        default: 'v1.0.0'
+        default: 'v1.0.7.1'
 
 permissions:
   contents: write
@@ -51,8 +51,10 @@ jobs:
         shell: bash
         run: |
           app_version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml | tr -d '\r')
-          if [[ "$RELEASE_TAG" != "v$app_version" ]]; then
-            echo "Release tag $RELEASE_TAG does not match pubspec version $app_version" >&2
+          build_number=$(sed -n 's/^version: *[^+]*+\([0-9][0-9]*\).*/\1/p' pubspec.yaml | tr -d '\r')
+          expected_tag="v${app_version}.${build_number}"
+          if [[ "$RELEASE_TAG" != "$expected_tag" ]]; then
+            echo "Release tag $RELEASE_TAG does not match pubspec version $app_version+$build_number (expected $expected_tag)" >&2
             exit 1
           fi
 

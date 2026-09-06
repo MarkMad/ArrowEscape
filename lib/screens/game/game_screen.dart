@@ -398,16 +398,15 @@ class _GameScreenState extends ConsumerState<GameScreen>
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Stack(
-        children: [
-          _LevelCompleteDialog(
-            level: _level,
-            stars: stars,
-            isRandom: widget.isRandom,
-            onNextLevel: _handleNextLevel,
-            onMenu: _handleMenu,
-          ),
-        ],
+      builder: (_) => PopScope(
+        canPop: false,
+        child: _LevelCompleteDialog(
+          level: _level,
+          stars: stars,
+          isRandom: widget.isRandom,
+          onNextLevel: _handleNextLevel,
+          onMenu: _handleMenu,
+        ),
       ),
     );
   }
@@ -443,42 +442,45 @@ class _GameScreenState extends ConsumerState<GameScreen>
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _GameOverDialog(
-        level: _level,
-        isTimeout: _isTimeoutState,
-        continueTime: continueTime,
-        gameMode: widget.gameMode,
-        score: _timeAttackScore,
-        onContinue: () {
-          Navigator.pop(context);
-          setState(() {
-            _showingGameOver = false;
-            if (_isTimeoutState) {
-              _timeRemaining = continueTime;
-              _isTimeoutState = false;
-              _gameState!.resumeFromTimeout();
-              _startLevelTimer();
+      builder: (_) => PopScope(
+        canPop: false,
+        child: _GameOverDialog(
+          level: _level,
+          isTimeout: _isTimeoutState,
+          continueTime: continueTime,
+          gameMode: widget.gameMode,
+          score: _timeAttackScore,
+          onContinue: () {
+            Navigator.pop(context);
+            setState(() {
+              _showingGameOver = false;
+              if (_isTimeoutState) {
+                _timeRemaining = continueTime;
+                _isTimeoutState = false;
+                _gameState!.resumeFromTimeout();
+                _startLevelTimer();
+              } else {
+                _gameState!.restoreLife();
+                _lives = _gameState!.lives;
+              }
+            });
+          },
+          onRestart: () {
+            Navigator.pop(context);
+            if (widget.gameMode == GameMode.timeAttack) {
+              _handleTimeAttackRestart();
             } else {
-              _gameState!.restoreLife();
-              _lives = _gameState!.lives;
+              _handleRestart();
             }
-          });
-        },
-        onRestart: () {
-          Navigator.pop(context);
-          if (widget.gameMode == GameMode.timeAttack) {
-            _handleTimeAttackRestart();
-          } else {
-            _handleRestart();
-          }
-        },
-        onMenu: () {
-          Navigator.pop(context);
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        },
+          },
+          onMenu: () {
+            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            );
+          },
+        ),
       ),
     );
   }
@@ -981,7 +983,7 @@ class _BottomBar extends StatelessWidget {
               ),
             ),
           ),
-          if (heartRemover || gameMode == GameMode.timeAttack)
+          if (heartRemover)
             const SizedBox()
           else if (gameMode == GameMode.zen)
             Row(
@@ -1223,9 +1225,11 @@ class _GameOverDialog extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isTimeAttack
-                  ? Icons.timer_off_rounded
-                  : (isTimeout ? Icons.hourglass_top : Icons.heart_broken),
+              isTimeout
+                  ? (isTimeAttack
+                        ? Icons.timer_off_rounded
+                        : Icons.hourglass_top)
+                  : Icons.heart_broken,
               color: isTimeAttack
                   ? Colors.orangeAccent
                   : themeColors.accentColor,
@@ -1233,9 +1237,9 @@ class _GameOverDialog extends ConsumerWidget {
             ).animate().shake(duration: 500.ms),
             const SizedBox(height: 12),
             Text(
-              isTimeAttack
-                  ? "Time's Up!"
-                  : (isTimeout ? 'Out of Time!' : 'Out of Lives!'),
+              isTimeout
+                  ? (isTimeAttack ? "Time's Up!" : 'Out of Time!')
+                  : 'Out of Lives!',
               style: const TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
