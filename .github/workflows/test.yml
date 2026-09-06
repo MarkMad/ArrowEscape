@@ -56,19 +56,12 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]]
           echo "value=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Build universal testing APK
-        env:
-          APP_VERSION: ${{ steps.version.outputs.value }}
-        run: |
-          flutter build apk --debug --no-pub
-          mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-debug.apk "dist/ArrowEscape-${APP_VERSION}-universal-debug.apk"
-
       - name: Build testing APKs for each architecture
         env:
           APP_VERSION: ${{ steps.version.outputs.value }}
         run: |
           flutter build apk --debug --split-per-abi --no-pub
+          mkdir -p dist
           for abi in armeabi-v7a arm64-v8a x86_64; do
             cp "build/app/outputs/flutter-apk/app-${abi}-debug.apk" "dist/ArrowEscape-${APP_VERSION}-${abi}-debug.apk"
           done
@@ -93,6 +86,6 @@ jobs:
             echo "## Arrow Escape ${APP_VERSION}"
             echo "[Download testing APKs](${ARTIFACT_URL})"
             echo ""
-            echo "Use the universal APK on any supported device, or arm64-v8a on most modern phones."
+            echo "Use arm64-v8a for most modern phones."
             echo "These are debug-signed testing builds, not production releases."
           } >> "$GITHUB_STEP_SUMMARY"
