@@ -47,6 +47,8 @@ if unsure which architecture your device uses. Debug signing keys can differ
 between CI runs and local builds, so Android may refuse to install one over
 another; uninstalling the existing app also removes its saved progress.
 
-The separate manual **Build and Release** workflow publishes signed release
-APKs. It requires repository secrets `KEYSTORE_BASE64`, `STORE_PASSWORD`,
-`KEY_PASSWORD`, and `KEY_ALIAS` for the release signing key.
+The separate **Build and Release** workflow publishes signed release APKs when
+a `v*.*.*` version tag is pushed, and can also be run manually. It verifies
+that the tag matches `pubspec.yaml` and requires repository secrets
+`KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_PASSWORD`, and `KEY_ALIAS` for the
+release signing key.

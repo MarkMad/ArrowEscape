@@ -1,6 +1,9 @@
 name: Build and Release
 
 on:
+  push:
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       version:
@@ -15,6 +18,9 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -28,11 +34,27 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.47.1'
+          channel: stable
           cache: true
 
       - name: Get Dependencies
         run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-pub
+
+      - name: Test
+        run: flutter test --no-pub
+
+      - name: Validate release version
+        shell: bash
+        run: |
+          app_version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml | tr -d '\r')
+          if [[ "$RELEASE_TAG" != "v$app_version" ]]; then
+            echo "Release tag $RELEASE_TAG does not match pubspec version $app_version" >&2
+            exit 1
+          fi
 
       - name: Setup Keystore
         run: |
@@ -47,11 +69,21 @@ jobs:
           flutter build apk --release
           flutter build apk --release --split-per-abi
 
-      - name: Upload Artifacts to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.version }}
-          name: ${{ inputs.version }}
-          generate_release_notes: true
-          files: |
-            build/app/outputs/flutter-apk/*.apk
+      - name: Publish GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t apks < <(find build/app/outputs/flutter-apk -maxdepth 1 -name '*.apk' -print | sort)
+          if (( ${#apks[@]} == 0 )); then
+            echo "No APKs were built" >&2
+            exit 1
+          fi
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${apks[@]}" --clobber
+          else
+            gh release create "$RELEASE_TAG" "${apks[@]}" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TAG" \
+              --generate-notes
+          fi
