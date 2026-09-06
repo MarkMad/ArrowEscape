@@ -32,3 +32,21 @@ Arrow Escape includes a theme selection system with custom skins. If you use it 
 ## License
 
 GPL v3
+
+## Automatic Android builds
+
+The [Build APKs workflow](https://github.com/MarkMad/ArrowEscape/actions/workflows/test.yml)
+runs on every push to `main`, every pull request targeting `main`, and on demand.
+It checks analysis and tests, then uploads a universal debug APK and smaller
+`arm64-v8a`, `armeabi-v7a`, and `x86_64` APKs with SHA-256 checksums. Download the
+ZIP from the run's **Artifacts** section or the link in its summary. Artifacts
+are retained for 30 days and use the version from `pubspec.yaml`.
+
+These APKs are for testing and need no signing secrets. Use the universal APK
+if unsure which architecture your device uses. Debug signing keys can differ
+between CI runs and local builds, so Android may refuse to install one over
+another; uninstalling the existing app also removes its saved progress.
+
+The separate manual **Build and Release** workflow publishes signed release
+APKs. It requires repository secrets `KEYSTORE_BASE64`, `STORE_PASSWORD`,
+`KEY_PASSWORD`, and `KEY_ALIAS` for the release signing key.
