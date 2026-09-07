@@ -16,6 +16,7 @@ class GameState extends ChangeNotifier {
   final GameTheme theme;
   final GameMode gameMode;
   final bool heartRemover;
+  final bool assistMode;
 
   late Map<String, OrphanDotType> _orphanDots;
 
@@ -46,6 +47,7 @@ class GameState extends ChangeNotifier {
     this.onDeadlock,
     this.gameMode = GameMode.classic,
     this.heartRemover = false,
+    this.assistMode = false,
     this.onCombo,
     this.onCameraShake,
   }) {
@@ -73,6 +75,32 @@ class GameState extends ChangeNotifier {
   Map<String, OrphanDotType> get orphanDots => _orphanDots;
 
   ArrowModel? arrowById(String id) => _arrowsById[id];
+
+  /// Assist only unambiguous taps next to an idle arrow, within the board.
+  String? assistedArrowAt(int row, int col) {
+    if (!assistMode ||
+        _isComplete ||
+        _isGameOver ||
+        row < 0 ||
+        col < 0 ||
+        row >= level.gridSize ||
+        col >= level.gridSize) {
+      return null;
+    }
+    String? target;
+    for (final arrow in _arrows) {
+      if (arrow.state == ArrowState.sliding) continue;
+      if (arrow.path.any((pt) => pt[0] == row && pt[1] == col)) return null;
+      if (arrow.state != ArrowState.idle) continue;
+      if (arrow.path.any(
+        (pt) => (pt[0] - row).abs() + (pt[1] - col).abs() == 1,
+      )) {
+        if (target != null) return null;
+        target = arrow.id;
+      }
+    }
+    return target;
+  }
 
   void handleArrowExitCompleted(String arrowId) {
     if (_isComplete || _arrowsById[arrowId]?.state != ArrowState.sliding) {

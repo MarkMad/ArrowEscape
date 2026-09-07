@@ -184,6 +184,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       level: _level,
       theme: progress.selectedTheme,
       heartRemover: progress.heartRemover,
+      assistMode: progress.assistMode,
       onLevelComplete: _onLevelComplete,
       onGameOver: widget.gameMode == GameMode.zen ? () {} : _onGameOver,
       onLifeLost: isLifeFree ? () {} : _onLifeLost,

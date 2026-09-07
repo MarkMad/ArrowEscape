@@ -72,6 +72,14 @@ class SettingsScreen extends ConsumerWidget {
                     ref.read(progressRepositoryProvider).toggleHeartRemover(),
                 accentColor: themeColors.accentColor,
               ),
+              const SizedBox(height: 14),
+              _buildPreferenceTile(
+                title: 'TAP ASSIST',
+                value: progress.assistMode,
+                onChanged: (_) =>
+                    ref.read(progressRepositoryProvider).toggleAssistMode(),
+                accentColor: themeColors.accentColor,
+              ),
               const SizedBox(height: 24),
               const Text(
                 'THEME & CUSTOM SKIN',
@@ -158,6 +166,14 @@ class SettingsScreen extends ConsumerWidget {
                               height: 24,
                               decoration: BoxDecoration(
                                 color: previewColors.arrowColor,
+                                gradient: previewColors.arrowPalette == null
+                                    ? null
+                                    : SweepGradient(
+                                        colors: [
+                                          ...previewColors.arrowPalette!,
+                                          previewColors.arrowPalette!.first,
+                                        ],
+                                      ),
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.white24,

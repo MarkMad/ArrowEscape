@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/models/level.dart';
@@ -9,7 +10,7 @@ import '../../core/app_themes.dart';
 import '../game_state.dart';
 import 'arrow_component.dart';
 
-class GridComponent extends PositionComponent {
+class GridComponent extends PositionComponent with TapCallbacks {
   final GameState gameState;
   double gridPixelSize;
 
@@ -38,6 +39,16 @@ class GridComponent extends PositionComponent {
   }) : super(position: position);
 
   double get cellSize => gridPixelSize / gameState.level.gridSize;
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    final point = event.localPosition;
+    final target = gameState.assistedArrowAt(
+      (point.y / cellSize).floor(),
+      (point.x / cellSize).floor(),
+    );
+    if (target != null) _arrowComponents[target]?.triggerMove();
+  }
 
   @override
   Future<void> onLoad() async {

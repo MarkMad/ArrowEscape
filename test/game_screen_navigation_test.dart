@@ -142,6 +142,29 @@ void main() {
               .game
           as ArrowPuzzleGame;
 
+  testWidgets('tap assist routes an empty-cell tap to an adjacent arrow', (
+    tester,
+  ) async {
+    await tester.runAsync(() => progress.toggleAssistMode());
+    await launch(tester);
+    await tester.pump(const Duration(seconds: 1));
+    final game = gameFor(tester);
+    final grid = game.gridComponent!;
+    final origin = tester.getTopLeft(
+      find.byWidgetPredicate((w) => w is GameWidget),
+    );
+    await tester.tapAt(
+      origin +
+          Offset(
+            grid.position.x - grid.size.x / 2 + grid.cellSize * 0.5,
+            grid.position.y - grid.size.y / 2 + grid.cellSize * 1.5,
+          ),
+    );
+    expect(game.gameState.arrowById('a')!.state, ArrowState.sliding);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets('completion dialog survives system back', (tester) async {
     await launch(tester, mode: GameMode.classic);
     final state = gameFor(tester).gameState;

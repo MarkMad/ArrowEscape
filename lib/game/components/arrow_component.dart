@@ -20,17 +20,17 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
   double _maxBlockSlide = 0.0;
   double _slideOffset = 0.0;
 
-  static const double _kLongPressThreshold = 0.30; 
+  static const double _kLongPressThreshold = 0.30;
   double _longPressAccum = 0.0;
   bool _isTouchDown = false;
   bool _isPreviewMode = false;
-  List<Offset>? _previewPath;   
-  double _previewPulseTime = 0.0;   
+  List<Offset>? _previewPath;
+  double _previewPulseTime = 0.0;
 
   bool _isExiting = false;
   double _exitProgress = 0.0;
   double _exitDuration = 0.35;
-  
+
   List<Offset>? _deflectedExtension;
 
   List<Offset>? _cachedPathPx;
@@ -121,9 +121,9 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     _longPressAccum = 0.0;
     _isPreviewMode = false;
     _previewPath = null;
-    if (wasPreview) return; 
+    if (wasPreview) return;
     if (_isAnimating) return;
-    _triggerMove();
+    triggerMove();
   }
 
   @override
@@ -135,7 +135,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     _previewPath = null;
   }
 
-  void _triggerMove() {
+  void triggerMove() {
     if (_isAnimating) return;
     _isAnimating = true;
 
@@ -212,11 +212,15 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
 
     final int exitExtCount = gridSize + 5;
     for (int i = 0; i <= exitExtCount; i++) {
-      pts.add(Offset((nc + d[1] * i + 0.5) * cellSize,
-                     (nr + d[0] * i + 0.5) * cellSize));
+      pts.add(
+        Offset(
+          (nc + d[1] * i + 0.5) * cellSize,
+          (nr + d[0] * i + 0.5) * cellSize,
+        ),
+      );
     }
 
-    return pts.reversed.toList(); 
+    return pts.reversed.toList();
   }
 
   List<Offset> _buildBlockedExtension() {
@@ -271,10 +275,11 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
       nc += d[1];
     }
 
-    final lastPoint = pts.isNotEmpty 
-        ? pts.last 
+    final lastPoint = pts.isNotEmpty
+        ? pts.last
         : Offset((head[1] + 0.5) * cellSize, (head[0] + 0.5) * cellSize);
-    final overshootPoint = lastPoint + Offset(d[1] * cellSize * 0.25, d[0] * cellSize * 0.25);
+    final overshootPoint =
+        lastPoint + Offset(d[1] * cellSize * 0.25, d[0] * cellSize * 0.25);
     pts.add(overshootPoint);
 
     return pts.reversed.toList();
@@ -351,7 +356,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     }
 
     if (_isExiting || _isBlockedAnimating) {
-      return; 
+      return;
     }
 
     ArrowModel? updated = gameState.arrowById(arrowModel.id);
@@ -380,7 +385,10 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     final bool pressed = _pressScale != 1.0;
     if (pressed) {
       final head = arrowModel.path[0];
-      final center = Offset((head[1] + 0.5) * cellSize, (head[0] + 0.5) * cellSize);
+      final center = Offset(
+        (head[1] + 0.5) * cellSize,
+        (head[0] + 0.5) * cellSize,
+      );
       canvas.save();
       canvas.translate(center.dx, center.dy);
       canvas.scale(_pressScale, _pressScale);
@@ -396,7 +404,6 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     final bool isAnimatingNow = _isExiting || _isBlockedAnimating;
 
     if (isAnimatingNow) {
-      
       if (_cachedTrack == null) {
         final delta = arrowModel.direction.delta;
         final headPx = pathPx.first;
@@ -409,7 +416,9 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
         } else {
           extCount = gameState.level.gridSize + 2;
           for (int i = extCount; i >= 1; i--) {
-            track.add(headPx + Offset(delta[1] * i * cellSize, delta[0] * i * cellSize));
+            track.add(
+              headPx + Offset(delta[1] * i * cellSize, delta[0] * i * cellSize),
+            );
           }
         }
         track.addAll(pathPx);
@@ -445,7 +454,10 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
       if (_isExiting) {
         final consumedDots = gameState.getConsumedDotsForArrow(arrowModel.id);
         for (final dot in consumedDots) {
-          final dotPx = Offset((dot.col + 0.5) * cellSize, (dot.row + 0.5) * cellSize);
+          final dotPx = Offset(
+            (dot.col + 0.5) * cellSize,
+            (dot.row + 0.5) * cellSize,
+          );
           double? dotDist;
           for (int i = 0; i < track.length; i++) {
             if ((track[i] - dotPx).distanceSquared < 0.01) {
@@ -459,14 +471,13 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
         }
       }
     } else {
-      
       pts = pathPx;
     }
 
     if (pts.isEmpty) return;
 
     final mainColor = _color();
-    final sw = cellSize * 0.13; 
+    final sw = cellSize * 0.13;
 
     canvas.save();
 
@@ -566,11 +577,11 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
 
     final tip = pts.first + Offset(dx * cellSize * 0.3, dy * cellSize * 0.3);
 
-    final hd = cellSize * 0.25; 
-    final hw = cellSize * 0.18; 
+    final hd = cellSize * 0.25;
+    final hw = cellSize * 0.18;
 
     final base = tip - Offset(dx * hd, dy * hd);
-    final px = -dy, py = dx; 
+    final px = -dy, py = dx;
 
     return Path()
       ..moveTo(base.dx + px * hw, base.dy + py * hw)
@@ -585,7 +596,10 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     final gridSize = gameState.level.gridSize;
     final pts = <Offset>[];
 
-    final headPx = Offset((head[1] + 0.5) * cellSize, (head[0] + 0.5) * cellSize);
+    final headPx = Offset(
+      (head[1] + 0.5) * cellSize,
+      (head[0] + 0.5) * cellSize,
+    );
     pts.add(headPx);
 
     var d = currentDir.delta;
@@ -602,11 +616,20 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
       if (orphanDots.containsKey(key)) {
         final dotType = orphanDots[key]!;
         switch (dotType) {
-          case OrphanDotType.up:    currentDir = ArrowDirection.up;    break;
-          case OrphanDotType.down:  currentDir = ArrowDirection.down;  break;
-          case OrphanDotType.left:  currentDir = ArrowDirection.left;  break;
-          case OrphanDotType.right: currentDir = ArrowDirection.right; break;
-          default: break;
+          case OrphanDotType.up:
+            currentDir = ArrowDirection.up;
+            break;
+          case OrphanDotType.down:
+            currentDir = ArrowDirection.down;
+            break;
+          case OrphanDotType.left:
+            currentDir = ArrowDirection.left;
+            break;
+          case OrphanDotType.right:
+            currentDir = ArrowDirection.right;
+            break;
+          default:
+            break;
         }
       }
 
@@ -616,8 +639,12 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
     }
 
     for (int i = 1; i <= 2; i++) {
-      pts.add(Offset((nc + d[1] * i + 0.5) * cellSize,
-                     (nr + d[0] * i + 0.5) * cellSize));
+      pts.add(
+        Offset(
+          (nc + d[1] * i + 0.5) * cellSize,
+          (nr + d[0] * i + 0.5) * cellSize,
+        ),
+      );
     }
 
     return pts.isEmpty ? null : pts;
@@ -635,9 +662,7 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
         ? const Color(0xFF808080)
         : Colors.white;
 
-    final Color coreColor = isBlocked
-        ? const Color(0xFF606060)
-        : Colors.white;
+    final Color coreColor = isBlocked ? const Color(0xFF606060) : Colors.white;
 
     final double pulse = 0.85 + 0.15 * (1.0 + (0.5 * _previewPulseTime).abs());
 
@@ -668,11 +693,19 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
       return const Color(0xFF606060);
     }
     final themeColors = AppThemes.getThemeColors(gameState.theme);
+    final palette = themeColors.arrowPalette;
+    if (palette != null && palette.isNotEmpty) {
+      return palette[arrowModel.id.hashCode.abs() % palette.length];
+    }
     return themeColors.arrowColor;
   }
 
   List<Offset> _slice(
-      List<Offset> track, List<double> dist, double from, double to) {
+    List<Offset> track,
+    List<double> dist,
+    double from,
+    double to,
+  ) {
     if (from >= to) {
       if (from == to && track.isNotEmpty) {
         return [_lerp(track, dist, from)];
@@ -700,7 +733,11 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
   }
 
   static void _drawOrphanDot(
-      Canvas canvas, Offset center, OrphanDotType type, double cs) {
+    Canvas canvas,
+    Offset center,
+    OrphanDotType type,
+    double cs,
+  ) {
     if (type == OrphanDotType.neutral) return;
 
     canvas.drawCircle(
@@ -722,11 +759,20 @@ class ArrowComponent extends PositionComponent with TapCallbacks {
 
     final ArrowDirection dir;
     switch (type) {
-      case OrphanDotType.up:    dir = ArrowDirection.up;    break;
-      case OrphanDotType.down:  dir = ArrowDirection.down;  break;
-      case OrphanDotType.left:  dir = ArrowDirection.left;  break;
-      case OrphanDotType.right: dir = ArrowDirection.right; break;
-      default: return;
+      case OrphanDotType.up:
+        dir = ArrowDirection.up;
+        break;
+      case OrphanDotType.down:
+        dir = ArrowDirection.down;
+        break;
+      case OrphanDotType.left:
+        dir = ArrowDirection.left;
+        break;
+      case OrphanDotType.right:
+        dir = ArrowDirection.right;
+        break;
+      default:
+        return;
     }
 
     canvas.save();
