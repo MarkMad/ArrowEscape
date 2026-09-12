@@ -59,6 +59,7 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _buildPreferenceTile(
                 title: 'HAPTIC FEEDBACK',
+                description: 'Vibrate on arrow taps, moves, and collisions',
                 value: progress.hapticsEnabled,
                 onChanged: (_) =>
                     ref.read(progressRepositoryProvider).toggleHaptics(),
@@ -67,6 +68,8 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 14),
               _buildPreferenceTile(
                 title: 'INFINITE LIVES',
+                description:
+                    'Play without losing hearts on blocked moves; Time Attack still uses hearts',
                 value: progress.heartRemover,
                 onChanged: (_) =>
                     ref.read(progressRepositoryProvider).toggleHeartRemover(),
@@ -75,6 +78,7 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 14),
               _buildPreferenceTile(
                 title: 'TAP ASSIST',
+                description: 'Count taps on empty tiles near arrows as clicks',
                 value: progress.assistMode,
                 onChanged: (_) =>
                     ref.read(progressRepositoryProvider).toggleAssistMode(),
@@ -210,29 +214,49 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildPreferenceTile({
     required String title,
+    required String description,
     required bool value,
     required ValueChanged<bool> onChanged,
     required Color accentColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceLight, width: 2),
+        border: Border.all(color: AppColors.surfaceLight, width: 1.5),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-              letterSpacing: 1.5,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(width: 12),
           Switch(
             value: value,
             onChanged: onChanged,
