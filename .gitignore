@@ -54,3 +54,6 @@ app.*.map.json
 *.p12
 *.pem
 key.properties
+
+# Local agent instructions
+/AGENTS.md
